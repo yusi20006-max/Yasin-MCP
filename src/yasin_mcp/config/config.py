@@ -1,11 +1,4 @@
-"""Configuration model.
-
-Environment-based, with defaults and validation. Any field that can
-hold a secret (currently: github_token) uses SecretStr so it is
-never accidentally included in a repr(), str(), or log line -- only
-.get_secret_value() exposes the raw value, and callers must do so
-deliberately.
-"""
+"""Validated environment configuration with conservative defaults."""
 
 from __future__ import annotations
 
@@ -19,7 +12,7 @@ class InvalidConfigurationError(Exception):
 
 @dataclass(frozen=True)
 class SecretStr:
-    """Wraps a secret value so it never appears in repr()/str()/logs by accident."""
+    """Secret wrapper that redacts itself from normal string representations."""
 
     _value: str = field(repr=False)
 
@@ -37,19 +30,19 @@ class SecretStr:
 
 
 _VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+_DEFAULT_TIMEOUT = 30
+_MAX_TIMEOUT = 120
+_DEFAULT_MAX_CONCURRENCY = 32
+_MAX_CONCURRENCY = 256
 
 
 @dataclass(frozen=True)
 class ServerConfig:
-    """Top-level Yasin-MCP server configuration.
-
-    github_token is Optional: Issue #6 (GitHub adapter) must work
-    with authentication absent (lower rate limits, public-only
-    access) rather than requiring a token to start at all.
-    """
+    """Top-level configuration with bounded resource and timeout settings."""
 
     log_level: str = "INFO"
-    request_timeout_seconds: int = 30
+    request_timeout_seconds: int = _DEFAULT_TIMEOUT
+    max_concurrent_requests: int = _DEFAULT_MAX_CONCURRENCY
     github_token: SecretStr | None = None
 
     def __post_init__(self) -> None:
@@ -57,9 +50,13 @@ class ServerConfig:
             raise InvalidConfigurationError(
                 f"log_level must be one of {sorted(_VALID_LOG_LEVELS)}, got {self.log_level!r}"
             )
-        if self.request_timeout_seconds <= 0:
+        if not 1 <= self.request_timeout_seconds <= _MAX_TIMEOUT:
             raise InvalidConfigurationError(
-                f"request_timeout_seconds must be positive, got {self.request_timeout_seconds!r}"
+                f"request_timeout_seconds must be between 1 and {_MAX_TIMEOUT}"
+            )
+        if not 1 <= self.max_concurrent_requests <= _MAX_CONCURRENCY:
+            raise InvalidConfigurationError(
+                f"max_concurrent_requests must be between 1 and {_MAX_CONCURRENCY}"
             )
 
 
@@ -75,7 +72,7 @@ def _env_int(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         raise InvalidConfigurationError(
-            f"Environment variable {name} must be an integer, got {raw!r}"
+            f"Environment variable {name} must be an integer"
         ) from None
 
 
@@ -87,15 +84,12 @@ def _env_secret(name: str) -> SecretStr | None:
 
 
 def load_config() -> ServerConfig:
-    """Build configuration from the environment.
-
-    Recognized environment variables:
-    - YASIN_MCP_LOG_LEVEL
-    - YASIN_MCP_REQUEST_TIMEOUT_SECONDS
-    - YASIN_MCP_GITHUB_TOKEN (optional; adapter must degrade gracefully without it)
-    """
+    """Build validated configuration from environment variables."""
     return ServerConfig(
-        log_level=_env_str("YASIN_MCP_LOG_LEVEL", "INFO"),
-        request_timeout_seconds=_env_int("YASIN_MCP_REQUEST_TIMEOUT_SECONDS", 30),
+        log_level=_env_str("YASIN_MCP_LOG_LEVEL", "INFO").upper(),
+        request_timeout_seconds=_env_int("YASIN_MCP_REQUEST_TIMEOUT_SECONDS", _DEFAULT_TIMEOUT),
+        max_concurrent_requests=_env_int(
+            "YASIN_MCP_MAX_CONCURRENT_REQUESTS", _DEFAULT_MAX_CONCURRENCY
+        ),
         github_token=_env_secret("YASIN_MCP_GITHUB_TOKEN"),
     )
