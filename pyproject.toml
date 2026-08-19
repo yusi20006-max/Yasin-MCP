@@ -8,9 +8,7 @@ version = "0.1.0"
 description = "Standalone AI/Agent-facing MCP access and integration layer for the Yasin ecosystem"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [
-    "mcp>=2,<3",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
@@ -20,9 +18,6 @@ dev = [
     "mypy>=1.8.0",
     "bandit>=1.7.0",
 ]
-
-[project.scripts]
-yasin-mcp = "yasin_mcp.server.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
