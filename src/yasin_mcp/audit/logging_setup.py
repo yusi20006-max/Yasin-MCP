@@ -1,13 +1,4 @@
-"""Structured logging and correlation/request IDs.
-
-Provides a JSON-structured logger and a request-id generator so
-every log line and error can be correlated to a single request
-across adapter calls. Secret redaction: any log call using this
-module's helpers must pass SecretStr values as-is (never
-.get_secret_value()) -- SecretStr's own __str__/__repr__ already
-redact, so a naive f-string or logging call is safe by construction
-as long as the raw string is never extracted first.
-"""
+"""Structured logging, correlation IDs, and defensive secret redaction."""
 
 from __future__ import annotations
 
@@ -18,14 +9,43 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
+_REDACTED = "***"
+_SENSITIVE_KEY_PARTS = (
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "authorization",
+    "api_key",
+    "apikey",
+    "credential",
+)
+
 
 def new_request_id() -> str:
     """Generate a new correlation/request ID."""
     return str(uuid.uuid4())
 
 
+def _is_sensitive_key(key: object) -> bool:
+    normalized = str(key).lower().replace("-", "_")
+    return any(part in normalized for part in _SENSITIVE_KEY_PARTS)
+
+
+def redact(value: Any) -> Any:
+    """Recursively redact sensitive mapping keys before they reach logs."""
+    if isinstance(value, Mapping):
+        return {
+            key: _REDACTED if _is_sensitive_key(key) else redact(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [redact(item) for item in value]
+    return value
+
+
 class JsonFormatter(logging.Formatter):
-    """Formats log records as single-line JSON."""
+    """Format log records as single-line JSON with redacted fields."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
@@ -38,24 +58,18 @@ class JsonFormatter(logging.Formatter):
             payload["request_id"] = request_id
         extra_fields = getattr(record, "fields", None)
         if extra_fields:
-            payload["fields"] = extra_fields
-        return json.dumps(payload, default=str)
+            payload["fields"] = redact(extra_fields)
+        return json.dumps(redact(payload), default=str)
 
 
 def configure_logging(level: str = "INFO") -> logging.Logger:
-    """Configure and return the yasin_mcp root logger.
-
-    Writes structured JSON to stdout. Safe to call multiple times
-    (idempotent handler setup) for use in tests.
-    """
+    """Configure and return the yasin_mcp logger idempotently."""
     logger = logging.getLogger("yasin_mcp")
     logger.setLevel(level)
-
     if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
         handler = logging.StreamHandler(stream=sys.stdout)
         handler.setFormatter(JsonFormatter())
         logger.addHandler(handler)
-
     return logger
 
 
@@ -66,5 +80,9 @@ def log_with_context(
     request_id: str | None = None,
     fields: Mapping[str, Any] | None = None,
 ) -> None:
-    """Log message with optional request_id and structured fields."""
-    logger.log(level, message, extra={"request_id": request_id, "fields": fields or {}})
+    """Log a message with correlation ID and defensively redacted fields."""
+    logger.log(
+        level,
+        message,
+        extra={"request_id": request_id, "fields": redact(fields or {})},
+    )
