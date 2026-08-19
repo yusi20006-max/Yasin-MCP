@@ -1,9 +1,20 @@
-"""Deny-by-default policy and future mutation safety classes."""
+"""Deny-by-default policy boundary.
+
+This module is the single place that decides whether a capability
+name/kind is allowed to exist in this server at all. It is
+deliberately conservative: anything not explicitly recognized as
+safe is denied, and a fixed list of forbidden name patterns is
+checked first and can never be overridden by configuration.
+
+This exists so that no future tool/resource -- however it is
+named -- can accidentally expose shell execution, arbitrary command
+execution, filesystem mutation, or an arbitrary API passthrough
+through this server, even by naming mistake.
+"""
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from enum import Enum
 
 from yasin_mcp.errors.errors import PolicyDeniedError
@@ -16,17 +27,12 @@ class CapabilityKind(str, Enum):
     RESOURCE = "resource"
 
 
-class SafetyClass(str, Enum):
-    """Policy class reserved for explicit future capability governance."""
-
-    READ_ONLY = "read_only"
-    PROPOSED_MUTATION = "proposed_mutation"
-    CONFIRMED_MUTATION = "confirmed_mutation"
-    DENY = "deny"
-
-
-PHASE_1_READ_ONLY = True
-
+# Matches on capability *names* is deliberately broad/substring-based
+# (not just exact match) so a name like "run_shell_command" or
+# "execute_arbitrary" is caught even if it isn't exactly "shell" or
+# "execute". This trades a small risk of over-blocking a legitimate
+# future name for a much lower risk of a dangerous name slipping
+# through by accident.
 _FORBIDDEN_NAME_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"exec", re.IGNORECASE),
     re.compile(r"shell", re.IGNORECASE),
@@ -39,18 +45,21 @@ _FORBIDDEN_NAME_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^(start|stop|restart)_", re.IGNORECASE),
 )
 
-
-@dataclass(frozen=True)
-class PolicyDecision:
-    """Auditable result of a capability policy evaluation."""
-
-    allowed: bool
-    safety_class: SafetyClass
-    reason: str
+# Phase 1 is read-only end to end: no capability kind or name may be
+# registered that implies a mutation, regardless of what a future
+# domain adapter might want. This flag exists so later phases have
+# one obvious switch to flip (and audit) rather than needing to hunt
+# down every call site.
+PHASE_1_READ_ONLY = True
 
 
 def check_capability_name_allowed(name: str) -> None:
-    """Raise when a capability name matches a permanently forbidden pattern."""
+    """Raise PolicyDeniedError if name matches a forbidden pattern.
+
+    This check runs before a capability can be registered anywhere
+    in the server (see capabilities/registry.py) and cannot be
+    bypassed by configuration.
+    """
     for pattern in _FORBIDDEN_NAME_PATTERNS:
         if pattern.search(name):
             raise PolicyDeniedError(
@@ -61,29 +70,10 @@ def check_capability_name_allowed(name: str) -> None:
 
 
 def check_mutation_allowed(is_mutating: bool) -> None:
-    """Reject all mutations while the Phase 1 read-only gate is active."""
+    """Raise PolicyDeniedError if a mutating capability is attempted
+    while PHASE_1_READ_ONLY is in effect."""
     if is_mutating and PHASE_1_READ_ONLY:
         raise PolicyDeniedError(
             "Mutating capabilities are not permitted in Phase 1 (read-only server).",
             details={"phase_1_read_only": True},
         )
-
-
-def evaluate_policy(
-    name: str,
-    *,
-    is_mutating: bool = False,
-    safety_class: SafetyClass = SafetyClass.READ_ONLY,
-) -> PolicyDecision:
-    """Evaluate a capability without executing it.
-
-    This function is deliberately fail-closed. Future mutation classes are
-    represented now so authorization/confirmation can be added without
-    changing the contract vocabulary, but they cannot be enabled in Phase 1.
-    """
-    check_capability_name_allowed(name)
-    if safety_class is SafetyClass.DENY:
-        return PolicyDecision(False, safety_class, "capability is explicitly denied")
-    if is_mutating or safety_class is not SafetyClass.READ_ONLY:
-        check_mutation_allowed(True)
-    return PolicyDecision(True, SafetyClass.READ_ONLY, "capability is read-only")
