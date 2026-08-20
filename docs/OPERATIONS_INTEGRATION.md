@@ -1,36 +1,31 @@
 # Yasin-Operations Integration
 
-This document describes how Yasin-MCP exposes a safe, read-only MCP
-interface over Yasin-Operations.
+This document describes how Yasin-MCP exposes a safe, read-only MCP interface over Yasin-Operations.
 
 ## Architecture
 
-```
-MCP client (e.g. Hermes)
-        |
-        v
-Yasin-MCP OperationsToolset (tools/operations.py)
-        |
-        v
-OperationsAdapter (adapters/operations.py)
-        |
-        v  subprocess: `yasin-operations gateway`, JSONL over stdin/stdout
-        v
-Yasin-Operations JSONL gateway (yasin_operations/gateway.py)
-        |
-        v
-Yasin-Operations Hermes adapter -> Core Executor
+```text
+Hermes
+  │
+  │ MCP / stdio
+  ▼
+Yasin-MCP
+  │
+  │ OperationsAdapter / JSONL boundary
+  ▼
+Yasin-Operations
+  │
+  ▼
+Executor → SafetyPolicy → ToolRegistry
 ```
 
-Yasin-MCP never imports the `yasin_operations` Python package
-directly. The only integration point is spawning the
-`yasin-operations` console script as a subprocess and communicating
-over its `gateway` subcommand's line-delimited JSON protocol on
-stdin/stdout. This keeps Yasin-MCP's own import graph completely
-independent of Yasin-Operations: `import yasin_mcp` succeeds whether
-or not Yasin-Operations is installed.
+Yasin-Operations remains the operational authority and is **not** an MCP server. Its existing JSONL gateway remains unchanged. Yasin-MCP is the MCP boundary presented to Hermes and other MCP clients.
+
+Yasin-MCP never imports the `yasin_operations` Python package directly. The integration point is the `yasin-operations gateway` executable and its line-delimited JSON protocol over stdin/stdout. This keeps Yasin-MCP independently importable when Yasin-Operations is absent.
 
 ## Exposed MCP tools
+
+Exactly four read-only tools are exposed when the Operations gateway is available:
 
 | MCP Tool | Operations Operation | Safety |
 |---|---|---|
@@ -39,105 +34,51 @@ or not Yasin-Operations is installed.
 | `yasin_operations_health` | `health_check` | `read_only` |
 | `yasin_operations_diagnostics` | `diagnostics` | `read_only` |
 
-This mapping is the literal `TOOL_MAP` constant in
-`src/yasin_mcp/tools/operations.py`. It is not dynamic: there is no
-code path anywhere in this integration that accepts a caller-
-supplied operation name. Each of the four `OperationsToolset`
-methods (`list_services()`, `service_status(name)`, `health()`,
-`diagnostics()`) calls exactly one hardcoded `OperationsAdapter`
-method, which in turn calls `_invoke()` with a hardcoded operation
-constant.
+The mapping is the literal `TOOL_MAP` constant in `src/yasin_mcp/tools/operations.py`. No caller can supply an arbitrary Operations operation name or `safety_class`.
+
+The MCP runtime registers these exact four functions with the official MCP Python SDK. Capability registration and actual MCP tool registration use the same availability check, so a missing Operations gateway cannot result in advertised-but-unusable tools.
+
+### Input schemas
+
+`yasin_operations_list_services`, `yasin_operations_health`, and `yasin_operations_diagnostics` accept an empty JSON object with no additional properties.
+
+`yasin_operations_service_status` requires exactly one field:
+
+```json
+{
+  "service_name": "yasin-ai"
+}
+```
+
+Unknown fields are rejected by the MCP tool schema, and empty service names are rejected by the adapter.
 
 ## Safety boundary
 
-Mutating Operations (`service_start`, `service_stop`,
-`service_restart`, and any other non-read-only operation) are never
-exposed through MCP. This is enforced at three independent layers:
+Mutating Operations are never exposed through MCP. This is enforced at three independent layers:
 
-1. **No code path exists.** `OperationsToolset` has no method that
-   accepts an arbitrary operation name -- there is no `call()`,
-   `invoke()`, or `execute()` method. `test_toolset_has_no_generic_invoke_method`
-   asserts this structurally.
-2. **The adapter's request builder rejects anything outside the
-   four allowed operations.** `_build_request()` in
-   `adapters/operations.py` raises `ValidationError` for any
-   operation name not in its fixed allow-set, even though in
-   practice it is only ever called with one of the four hardcoded
-   constants from this module's own call sites.
-3. **`safety_class` is always hardcoded to `"read_only"`** in the
-   request this adapter sends -- it is never accepted as a
-   parameter from any caller. A caller cannot override it.
+1. `OperationsToolset` contains only the four named methods. There is no generic `call()`, `invoke()`, or `execute()` method.
+2. `_build_request()` rejects any operation outside the fixed four-item allow-set.
+3. `safety_class` is hardcoded to `read_only` and is never accepted from a caller.
 
-On the Yasin-Operations side, the gateway's `Executor` independently
-verifies that a request's declared `safety_class` matches the
-safety class the target Tool's capability actually declares for
-that operation, and rejects the request with a `VALIDATION_ERROR` on
-mismatch. This is a second, independent check on the Yasin-
-Operations side of the boundary -- Yasin-MCP does not rely on it as
-its only line of defense, since Yasin-MCP's own hardcoded operation
-set already prevents a mutating operation from ever being requested.
+Yasin-Operations independently validates the declared safety class against its own tool capability before execution. MCP therefore does not bypass the existing Operations safety boundary.
+
+No arbitrary shell/process execution, generic operation passthrough, lifecycle mutation, deployment, or filesystem mutation is exposed by this bridge.
 
 ## Availability behavior
 
-`OperationsAdapter.available` is a cheap, non-blocking check
-(`shutil.which("yasin-operations")`) that never spawns a subprocess.
-Operations tools are registered into the capability registry (via
-`register_operations_tools()` in
-`capabilities/operations_registration.py`) **only** when this check
-passes. When Yasin-Operations is not installed, not on `PATH`, or
-otherwise unavailable:
+`OperationsAdapter.available` uses a non-blocking executable lookup. If `yasin-operations` is unavailable:
 
 - Yasin-MCP still starts normally.
-- No Operations capability is advertised at all.
-- Every other MCP tool/resource continues to work unaffected.
+- No Operations MCP tools are advertised.
+- Other Yasin-MCP capabilities remain unaffected.
 
-If a call is attempted after registration but the gateway becomes
-unreachable at invocation time (process disappeared, binary
-removed, etc), the adapter raises `UnavailableDependencyError`
-rather than crashing the server or the calling request.
+If the gateway becomes unavailable after startup, the adapter returns a structured MCP dependency error rather than exposing a raw subprocess exception.
 
-## Failure handling
+## Hermes registration
 
-All failure modes become structured `McpError` subclasses, never a
-raw/unhandled exception:
+Hermes must register **Yasin-MCP**, not Yasin-Operations directly.
 
-| Condition | Error raised |
-|---|---|
-| Gateway executable not on `PATH` | `UnavailableDependencyError` |
-| Subprocess fails to start (`FileNotFoundError`) | `UnavailableDependencyError` |
-| Gateway does not respond within the timeout | `TimeoutMcpError` |
-| Gateway response exceeds the size limit | `InternalError` |
-| Gateway produced no output | `InternalError` |
-| Gateway output is not valid JSON | `InternalError` |
-| Gateway output is valid JSON but not an object | `InternalError` |
-| Empty/invalid `service_name` for `service_status` | `ValidationError` |
-
-A structured failure result from the gateway itself (e.g. "service
-not found") is not raised as an exception -- it is returned as a
-normal `OperationsResult` with `success=False` and a populated
-`error` field, since that is expected, structured domain output, not
-an adapter-level failure.
-
-## Evidence metadata
-
-Every `OperationsResult` (and the dict returned by each
-`OperationsToolset` method) includes:
-
-- `source` — a string identifying the transport (`"yasin-operations
-  gateway (<executable>)"`)
-- `evidence_status` — `"confirmed"` when the gateway reported
-  `service_available: true`, `"unresolved"` when it reported
-  `service_available: false`
-
-Neither field, nor any other field in the response, ever contains a
-credential or secret -- the gateway protocol itself has no
-credential-bearing fields in its request or response envelope, and
-Yasin-MCP does not add any.
-
-## Hermes integration
-
-Documented, expected configuration (not independently live-tested
-in this environment -- see Limitations below):
+From an environment where the `yasin-mcp` executable is installed:
 
 ```bash
 hermes mcp add yasin-mcp -- yasin-mcp
@@ -145,48 +86,84 @@ hermes mcp list
 hermes mcp test yasin-mcp
 ```
 
-For Operations capabilities specifically to be available through
-this path, both the `yasin-mcp` and `yasin-operations` executables
-must be installed and on `PATH` in the environment Hermes launches
-`yasin-mcp` in.
+The expected configuration is equivalent to:
 
-## Limitations
+```text
+server name: yasin-mcp
+command:     yasin-mcp
+transport:   stdio
+```
 
-- **No hard dependency.** `yasin_operations` is never imported by
-  Yasin-MCP; the pyproject.toml dependency list is unchanged by this
-  integration.
-- **Live Hermes -> Yasin-MCP -> gateway -> Executor testing was not
-  performed.** This sandbox environment has no Hermes installation,
-  no network access to install one, and no long-running
-  Yasin-Operations instance with real managed services. Faking that
-  result was explicitly out of scope. Instead, `tests/test_operations_integration.py`
-  exercises the *real* subprocess transport (a genuine `subprocess.run`
-  call, real stdin/stdout communication) against a small fake
-  gateway script that implements the exact wire protocol shape
-  Yasin-Operations' `JsonlGateway` uses. This proves the transport
-  and parsing logic end-to-end; it is not a substitute for testing
-  against the real `yasin-operations gateway` process, and is not
-  presented as one.
-- **One subprocess spawn per call.** Each `OperationsAdapter` method
-  call spawns a fresh `yasin-operations gateway` subprocess rather
-  than reusing a long-lived process. This keeps the adapter simple
-  and avoids separate subprocess lifecycle/health management, at the
-  cost of per-call process-spawn latency. Acceptable for a
-  diagnostics/inspection interface; would need reconsidering for a
-  high-frequency use case.
-- **Response size limit is a blunt instrument.** `max_response_bytes`
-  (default 1MB) truncates by rejecting the whole response rather
-  than streaming/paginating a large result. No Operations response
-  in the current four-tool contract is expected to approach this
-  size.
+For the four Operations tools to be available, `yasin-operations` must also be installed and discoverable on the same `PATH` inherited by the Hermes-launched Yasin-MCP process.
 
-## Test status
+The exact Hermes CLI commands above are documented integration instructions; this repository's automated tests do not claim a live Hermes installation is available.
 
-225 tests pass (`pytest -q`, 0 failed, 0 skipped) as of this
-integration, including 65 tests specific to the Operations
-integration across `test_operations_adapter.py`,
-`test_operations_tools.py`, `test_operations_registration.py`, and
-`test_operations_integration.py`. See the PR description for the
-full breakdown and for three pre-existing test failures found and
-fixed as part of this work (one real bug in `ServerRuntime.create()`,
-two incorrect test expectations unrelated to this integration).
+## End-to-end behavior
+
+The intended runtime path is:
+
+```text
+Hermes
+  │
+  │ list_tools / call_tool
+  ▼
+Yasin-MCP MCPServer
+  │
+  ▼
+OperationsToolset
+  │
+  ▼
+OperationsAdapter
+  │
+  │ fixed argv: ["yasin-operations", "gateway"]
+  │ JSONL over stdin/stdout
+  ▼
+Yasin-Operations Gateway
+  │
+  ▼
+Executor / SafetyPolicy / ToolRegistry
+```
+
+The repository test suite verifies the MCP runtime registration boundary and the real subprocess transport against a deterministic fake gateway implementing the same JSONL envelope. A real Hermes process and live Yasin-Operations deployment are external integration tests and are not represented as passing evidence unless actually executed.
+
+## Evidence metadata
+
+Every successful or structured gateway response includes:
+
+- `source` — identifies the Yasin-Operations gateway transport.
+- `evidence_status` — `confirmed` when the gateway reports availability and `unresolved` when it does not.
+
+Yasin-MCP does not invent service state when the upstream source is unavailable.
+
+## Failure handling
+
+| Condition | Result |
+|---|---|
+| Gateway executable unavailable | `UnavailableDependencyError` |
+| Gateway cannot start | `UnavailableDependencyError` |
+| Gateway timeout | `TimeoutMcpError` |
+| Oversized response | `InternalError` |
+| Empty/malformed response | `InternalError` |
+| Invalid `service_name` | `ValidationError` |
+| Normal upstream failure response | Structured `OperationsResult` with `success=false` |
+
+Internal exception text, credentials, environment variables, and arbitrary subprocess details are not exposed to MCP callers.
+
+## Independence
+
+`yasin_operations` is intentionally not a Python dependency of Yasin-MCP. A clean environment without Yasin-Operations can import and start Yasin-MCP; the Operations capability simply remains unavailable.
+
+## Validation status
+
+Automated validation covers:
+
+- exact four-tool registration;
+- absence of Operations tools when the gateway is unavailable;
+- explicit tool schemas;
+- adapter allow-list and fixed safety class;
+- malformed and oversized gateway responses;
+- timeout and unavailable-gateway behavior;
+- real subprocess JSONL transport using a deterministic fake gateway;
+- security checks and secret-leakage regression tests.
+
+A live Hermes → Yasin-MCP → Yasin-Operations → Executor test requires the Hermes runtime and a real Yasin-Operations environment and must be reported separately when performed.
