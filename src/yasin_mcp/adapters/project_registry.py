@@ -102,9 +102,7 @@ def _extract_entries(data: Any) -> list[dict[str, Any]]:
             return [item for item in value if isinstance(item, dict)]
         if isinstance(value, dict):
             return [
-                {"name": name, **item}
-                for name, item in value.items()
-                if isinstance(item, dict)
+                {"name": name, **item} for name, item in value.items() if isinstance(item, dict)
             ]
     return [data]
 

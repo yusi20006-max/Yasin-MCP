@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from yasin_mcp.capabilities.registry import CapabilityRegistry, descriptor_for, discover_capabilities
+from yasin_mcp.capabilities.registry import (
+    CapabilityRegistry,
+    descriptor_for,
+    discover_capabilities,
+)
 from yasin_mcp.errors.errors import PolicyDeniedError
 from yasin_mcp.policies.policy import SafetyClass, evaluate_policy
 from yasin_mcp.protocol.contracts import CapabilityContract, CapabilityScope
@@ -17,7 +21,15 @@ from yasin_mcp.version import EvidenceStatus
 
 @pytest.mark.parametrize(
     "name",
-    ["exec", "shell", "run_command", "delete_repo", "deploy_service", "start_service", "stop_service"],
+    [
+        "exec",
+        "shell",
+        "run_command",
+        "delete_repo",
+        "deploy_service",
+        "start_service",
+        "stop_service",
+    ],
 )
 def test_forbidden_capability_names_never_register(name: str) -> None:
     with pytest.raises(PolicyDeniedError):

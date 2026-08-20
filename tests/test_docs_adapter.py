@@ -7,18 +7,15 @@ import base64
 import pytest
 
 from yasin_mcp.adapters.docs import (
-    DOCS_REPOSITORY,
     DOCS_OWNER,
+    DOCS_REPOSITORY,
     YasinDocsAdapter,
 )
 from yasin_mcp.errors.errors import NotFoundError, ValidationError
 
 
 def make_requester(files: dict[str, str]):
-    encoded = {
-        path: base64.b64encode(content.encode()).decode()
-        for path, content in files.items()
-    }
+    encoded = {path: base64.b64encode(content.encode()).decode() for path, content in files.items()}
 
     def requester(url: str, headers: dict[str, str], timeout: int):
         assert url.startswith("https://api.github.com/")
@@ -60,7 +57,10 @@ def adapter() -> YasinDocsAdapter:
             {
                 "README.md": "Yasin architecture overview",
                 "docs/adr/ADR-0001.md": "Decision: keep boundaries explicit",
-                "docs/architecture/CORE.md": "Yasin-Core architecture and runtime",
+                "docs/architecture/CORE.md": (
+                    "Yasin-Core architecture. This architecture document "
+                    "describes the Core architecture in detail."
+                ),
             }
         ),
     )

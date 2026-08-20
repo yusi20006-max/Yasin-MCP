@@ -34,7 +34,7 @@ jobs:
         run: mypy src
 
       - name: Security check (bandit)
-        run: bandit -q -r src
+        run: bandit -q -ll -r src
 
       - name: Tests
         run: pytest --cov=yasin_mcp --cov-report=term-missing

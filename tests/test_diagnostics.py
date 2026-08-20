@@ -42,6 +42,8 @@ def test_optional_operations_contract_is_consumed_read_only() -> None:
         def diagnostics(self):
             return {"checks": 3}
 
-    result = DiagnosticsAdapter(registry=CapabilityRegistry(), operations=Operations()).get_diagnostics()
+    result = DiagnosticsAdapter(
+        registry=CapabilityRegistry(), operations=Operations()
+    ).get_diagnostics()
     assert result.health.status == "healthy"
     assert result.diagnostics == {"checks": 3}

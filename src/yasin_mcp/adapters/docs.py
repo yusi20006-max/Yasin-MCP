@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import base64
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -86,7 +87,9 @@ class YasinDocsAdapter:
 
     def list_documents(self) -> tuple[DocumentRef, ...]:
         """Return bounded text-document metadata from the repository tree."""
-        payload = self._get(f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/git/trees/{DOCS_REF}?recursive=1")
+        payload = self._get(
+            f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/git/trees/{DOCS_REF}?recursive=1"
+        )
         if payload.get("truncated"):
             raise UpstreamError("YASIN-DOCS tree response was truncated")
         refs: list[DocumentRef] = []
@@ -114,9 +117,7 @@ class YasinDocsAdapter:
     def get_doc(self, path: str) -> Document:
         """Read one explicitly named document from YASIN-DOCS."""
         _validate_path(path)
-        payload = self._get(
-            f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/contents/{path}?ref={DOCS_REF}"
-        )
+        payload = self._get(f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/contents/{path}?ref={DOCS_REF}")
         if payload.get("type") != "file":
             raise ValidationError("requested documentation path is not a file")
         encoded = payload.get("content")
@@ -154,6 +155,7 @@ class YasinDocsAdapter:
         normalized = name.strip()
         if not normalized:
             raise ValidationError("ADR name must not be empty")
+        candidates: tuple[str, ...]
         if "/" in normalized or normalized.lower().endswith((".md", ".mdx")):
             candidates = (normalized,)
         else:
@@ -173,7 +175,10 @@ class YasinDocsAdapter:
         matches = self.search_docs(normalized)
         for result in matches:
             path = result.document.path.lower()
-            if "architecture" in path and normalized.casefold() in result.document.content.casefold():
+            if (
+                "architecture" in path
+                and normalized.casefold() in result.document.content.casefold()
+            ):
                 return result.document
         raise NotFoundError(f"No architecture document was found for project {project!r}")
 
@@ -201,7 +206,11 @@ def _validate_path(path: str) -> None:
 def _request_json(url: str, headers: dict[str, str], timeout: int) -> dict[str, Any]:
     request = Request(url, headers=headers, method="GET")
     try:
-        with urlopen(request, timeout=timeout) as response:
+        # nosec B310: url is always constructed from the hardcoded
+        # GITHUB_API = "https://api.github.com" prefix (see module
+        # constants above) plus path segments this module builds
+        # itself -- never a caller-supplied scheme or arbitrary URL.
+        with urlopen(request, timeout=timeout) as response:  # nosec B310
             raw = response.read(MAX_DOCUMENT_BYTES + 1)
     except HTTPError as exc:
         if exc.code == 401:

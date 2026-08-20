@@ -6,8 +6,8 @@ execute tools, load adapters, or contact external systems.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from yasin_mcp.capabilities.descriptor import CapabilityDescriptor
 from yasin_mcp.errors.errors import ValidationError

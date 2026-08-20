@@ -81,6 +81,18 @@ one of:
 - `PROPOSED` — a suggestion or plan, not yet implemented anywhere
 - `UNRESOLVED` — could not be determined; must not be presented as fact
 
+## Yasin-Operations integration
+
+Yasin-MCP exposes four read-only MCP tools over Yasin-Operations
+(`yasin_operations_list_services`, `yasin_operations_service_status`,
+`yasin_operations_health`, `yasin_operations_diagnostics`), via a
+subprocess adapter that never imports the `yasin_operations` package
+directly and is registered only when the `yasin-operations`
+executable is available. See
+[`docs/OPERATIONS_INTEGRATION.md`](docs/OPERATIONS_INTEGRATION.md)
+for the full architecture, safety boundary, availability behavior,
+and known limitations.
+
 ## Development
 
 ```bash
