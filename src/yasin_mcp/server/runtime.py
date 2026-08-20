@@ -35,8 +35,8 @@ class ServerRuntime:
         registry: CapabilityRegistry | None = None,
     ) -> ServerRuntime:
         """Construct an empty, policy-safe MCP server."""
-        resolved_config = config or ServerConfig()
-        resolved_registry = registry or CapabilityRegistry()
+        resolved_config = config if config is not None else ServerConfig()
+        resolved_registry = registry if registry is not None else CapabilityRegistry()
         server = MCPServer(
             SERVER_NAME,
             description="AI/Agent-facing access layer for the Yasin ecosystem",

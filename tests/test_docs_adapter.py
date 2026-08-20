@@ -60,7 +60,10 @@ def adapter() -> YasinDocsAdapter:
             {
                 "README.md": "Yasin architecture overview",
                 "docs/adr/ADR-0001.md": "Decision: keep boundaries explicit",
-                "docs/architecture/CORE.md": "Yasin-Core architecture and runtime",
+                "docs/architecture/CORE.md": (
+                    "Yasin-Core architecture. This architecture document "
+                    "describes the Core architecture in detail."
+                ),
             }
         ),
     )
