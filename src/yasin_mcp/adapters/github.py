@@ -262,7 +262,11 @@ def _quote_query(query: str) -> str:
 def _request_json(url: str, headers: dict[str, str], timeout: int) -> Any:
     request = Request(url, headers=headers, method="GET")
     try:
-        with urlopen(request, timeout=timeout) as response:
+        # nosec B310: url is always constructed from the hardcoded
+        # GITHUB_API = "https://api.github.com" prefix (see module
+        # constants above) plus path segments this module builds
+        # itself -- never a caller-supplied scheme or arbitrary URL.
+        with urlopen(request, timeout=timeout) as response:  # nosec B310
             raw = response.read(MAX_RESPONSE_BYTES + 1)
     except HTTPError as exc:
         if exc.code == 401:
