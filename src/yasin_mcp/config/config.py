@@ -71,9 +71,7 @@ def _env_int(name: str, default: int) -> int:
     try:
         return int(raw)
     except ValueError:
-        raise InvalidConfigurationError(
-            f"Environment variable {name} must be an integer"
-        ) from None
+        raise InvalidConfigurationError(f"Environment variable {name} must be an integer") from None
 
 
 def _env_secret(name: str) -> SecretStr | None:

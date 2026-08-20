@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Protocol
+from typing import Any, Protocol
 
 from yasin_mcp.capabilities.registry import CapabilityRegistry, discover_capabilities
 from yasin_mcp.errors.errors import McpError, UnavailableDependencyError
@@ -77,7 +78,9 @@ class DiagnosticsAdapter:
             except McpError:
                 raise
             except Exception as exc:
-                raise UnavailableDependencyError("Yasin-Operations health source is unavailable") from exc
+                raise UnavailableDependencyError(
+                    "Yasin-Operations health source is unavailable"
+                ) from exc
         return HealthStatus(
             status="unresolved",
             source="none",

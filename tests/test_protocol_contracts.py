@@ -12,8 +12,8 @@ from yasin_mcp.capabilities.registry import (
 )
 from yasin_mcp.errors.errors import McpError, PolicyDeniedError, ValidationError
 from yasin_mcp.protocol.contracts import (
-    CURRENT_PROTOCOL_VERSION,
     CONTRACT_VERSION,
+    CURRENT_PROTOCOL_VERSION,
     CapabilityContract,
     CapabilityScope,
     ProtocolVersion,
@@ -106,7 +106,9 @@ def test_forbidden_capability_name_is_rejected() -> None:
 
 def test_error_response_from_structured_error() -> None:
     error = McpError(
-        category=__import__("yasin_mcp.errors.errors", fromlist=["ErrorCategory"]).ErrorCategory.NOT_FOUND,
+        category=__import__(
+            "yasin_mcp.errors.errors", fromlist=["ErrorCategory"]
+        ).ErrorCategory.NOT_FOUND,
         message="missing",
         details={"resource": "docs"},
     )

@@ -7,8 +7,9 @@ method, so callers cannot turn this adapter into an arbitrary GitHub API proxy.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -130,7 +131,9 @@ class GitHubAdapter:
                 title=str(item.get("title", "")),
                 state=str(item.get("state", "")),
                 html_url=str(item.get("html_url", "")),
-                source_url=f"{GITHUB_API}/repos/{owner}/{repository}/issues/{item.get('number', 0)}",
+                source_url=(
+                    f"{GITHUB_API}/repos/{owner}/{repository}/issues/{item.get('number', 0)}"
+                ),
             )
             for item in payload[:limit]
             if "pull_request" not in item
@@ -187,9 +190,7 @@ class GitHubAdapter:
     ) -> tuple[dict[str, Any], ...]:
         owner, repository = _validate_repo(owner, repository)
         limit = _validate_limit(limit)
-        payload = self._get(
-            f"/repos/{owner}/{repository}/actions/runs?per_page={limit}"
-        )
+        payload = self._get(f"/repos/{owner}/{repository}/actions/runs?per_page={limit}")
         runs = payload.get("workflow_runs", [])
         if not isinstance(runs, list):
             raise UpstreamError("GitHub returned an unexpected workflow-run shape")
@@ -237,7 +238,11 @@ class GitHubAdapter:
 
 
 def _validate_repo(owner: str, repository: str) -> tuple[str, str]:
-    if not owner or not repository or any(value in owner + repository for value in ("/", "..", " ")):
+    if (
+        not owner
+        or not repository
+        or any(value in owner + repository for value in ("/", "..", " "))
+    ):
         raise ValidationError("invalid GitHub repository identifier")
     return owner, repository
 

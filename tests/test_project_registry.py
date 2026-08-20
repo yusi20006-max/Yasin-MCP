@@ -29,7 +29,11 @@ class FakeDocs:
 def test_project_registry_normalizes_mapping(monkeypatch: pytest.MonkeyPatch) -> None:
     adapter = ProjectRegistryAdapter(
         FakeDocs(
-            "projects:\n  Yasin-Core:\n    repository: yusi20006-max/Yasin-Core\n    status: stable\n    owner: Yasin Team\n"
+            "projects:\n"
+            "  Yasin-Core:\n"
+            "    repository: yusi20006-max/Yasin-Core\n"
+            "    status: stable\n"
+            "    owner: Yasin Team\n"
         )
     )
     project = adapter.get_project("Yasin-Core")

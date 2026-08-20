@@ -21,22 +21,66 @@ def requester(url: str, headers: dict[str, str], timeout: int):
             "html_url": "https://github.com/yusi/Yasin",
         }
     if "/issues/4" in url:
-        return {"number": 4, "title": "Test issue", "state": "open", "html_url": "https://github.com/i/4"}
+        return {
+            "number": 4,
+            "title": "Test issue",
+            "state": "open",
+            "html_url": "https://github.com/i/4",
+        }
     if "/issues?" in url:
         return [
             {"number": 4, "title": "Issue", "state": "open", "html_url": "https://github.com/i/4"},
-            {"number": 5, "title": "PR", "state": "open", "html_url": "https://github.com/p/5", "pull_request": {}},
+            {
+                "number": 5,
+                "title": "PR",
+                "state": "open",
+                "html_url": "https://github.com/p/5",
+                "pull_request": {},
+            },
         ]
     if "/pulls/8" in url:
-        return {"number": 8, "title": "PR", "state": "open", "draft": False, "html_url": "https://github.com/p/8"}
+        return {
+            "number": 8,
+            "title": "PR",
+            "state": "open",
+            "draft": False,
+            "html_url": "https://github.com/p/8",
+        }
     if "/pulls?" in url:
-        return [{"number": 8, "title": "PR", "state": "open", "draft": False, "html_url": "https://github.com/p/8"}]
+        return [
+            {
+                "number": 8,
+                "title": "PR",
+                "state": "open",
+                "draft": False,
+                "html_url": "https://github.com/p/8",
+            }
+        ]
     if "/commits/abc/status" in url:
         return {"state": "success", "total_count": 2}
     if "/actions/runs?" in url:
-        return {"workflow_runs": [{"id": 1, "name": "CI", "status": "completed", "conclusion": "success", "html_url": "https://github.com/run/1"}]}
+        return {
+            "workflow_runs": [
+                {
+                    "id": 1,
+                    "name": "CI",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "html_url": "https://github.com/run/1",
+                }
+            ]
+        }
     if "/search/code?" in url:
-        return {"items": [{"name": "README.md", "path": "README.md", "repository": {"full_name": "yusi/Yasin"}, "html_url": "https://github.com/r"}]}
+        return {
+            "items": [
+                {
+                    "name": "README.md",
+                    "path": "README.md",
+                    "repository": {"full_name": "yusi/Yasin"},
+                    "html_url": "https://github.com/r",
+                }
+            ]
+        }
     raise AssertionError(f"unexpected endpoint: {url}")
 
 
@@ -67,8 +111,12 @@ def test_bounded_code_search(adapter: GitHubAdapter) -> None:
     assert adapter.search_code("Yasin")[0].path == "README.md"
 
 
-@pytest.mark.parametrize("owner,repo", [("", "Yasin"), ("yusi", ""), ("yusi/evil", "Yasin"), ("yusi", "../evil")])
-def test_repository_identifiers_are_validated(adapter: GitHubAdapter, owner: str, repo: str) -> None:
+@pytest.mark.parametrize(
+    "owner,repo", [("", "Yasin"), ("yusi", ""), ("yusi/evil", "Yasin"), ("yusi", "../evil")]
+)
+def test_repository_identifiers_are_validated(
+    adapter: GitHubAdapter, owner: str, repo: str
+) -> None:
     with pytest.raises(ValidationError):
         adapter.get_repository(owner, repo)
 
