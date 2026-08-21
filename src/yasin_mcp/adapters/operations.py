@@ -27,6 +27,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from yasin_mcp.audit.context import get_request_id
 from yasin_mcp.errors.errors import (
     InternalError,
     TimeoutMcpError,
@@ -125,7 +126,7 @@ def _build_request(operation: str, target_kind: str, target_identifier: str) -> 
             "parameters": {},
             "actor": "yasin-mcp",
             "source": "yasin-mcp",
-            "request_id": str(uuid.uuid4()),
+            "request_id": get_request_id() or str(uuid.uuid4()),
         },
     }
 

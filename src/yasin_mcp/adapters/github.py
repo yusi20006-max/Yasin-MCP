@@ -2,23 +2,16 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 from yasin_mcp.config.config import SecretStr
 from yasin_mcp.errors.errors import (
-    NotFoundError,
-    RateLimitedError,
-    TimeoutMcpError,
-    UnauthenticatedError,
-    UnavailableDependencyError,
     UpstreamError,
     ValidationError,
 )
+from yasin_mcp.reliability.http_retry import github_get_json
 from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 from yasin_mcp.version import EvidenceStatus
 
@@ -390,11 +383,11 @@ class GitHubAdapter:
         )
 
     def search_code(self, query: str, *, limit: int = 20) -> tuple[SearchResult, ...]:
-        query = query.strip()
-        if not query:
-            raise ValidationError("search query must not be empty")
+        if not query or not query.strip():
+            raise ValidationError("search query must be non-empty")
         limit = _validate_limit(limit)
-        payload = self._get(f"/search/code?q={_quote_query(query)}&per_page={limit}")
+        q = _quote_query(query.strip())
+        payload = self._get(f"/search/code?q={q}&per_page={limit}")
         items = payload.get("items", [])
         if not isinstance(items, list):
             raise UpstreamError("GitHub returned an unexpected search shape")
@@ -443,25 +436,4 @@ def _quote_query(query: str) -> str:
 
 
 def _request_json(url: str, headers: dict[str, str], timeout: int) -> Any:
-    request = Request(url, headers=headers, method="GET")
-    try:
-        with urlopen(request, timeout=timeout) as response:  # nosec B310
-            raw = response.read(MAX_RESPONSE_BYTES + 1)
-    except HTTPError as exc:
-        if exc.code == 401:
-            raise UnauthenticatedError("GitHub authentication failed") from exc
-        if exc.code == 404:
-            raise NotFoundError("GitHub resource was not found") from exc
-        if exc.code == 403 or exc.code == 429:
-            raise RateLimitedError("GitHub denied the request or rate limit was reached") from exc
-        raise UpstreamError(f"GitHub returned HTTP {exc.code}") from exc
-    except TimeoutError as exc:
-        raise TimeoutMcpError("GitHub request timed out") from exc
-    except URLError as exc:
-        raise UnavailableDependencyError("GitHub is unavailable") from exc
-    if len(raw) > MAX_RESPONSE_BYTES:
-        raise UpstreamError("GitHub response exceeded the configured size limit")
-    try:
-        return json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise UpstreamError("GitHub returned invalid JSON") from exc
+    return github_get_json(url, headers, timeout, max_response_bytes=MAX_RESPONSE_BYTES)
