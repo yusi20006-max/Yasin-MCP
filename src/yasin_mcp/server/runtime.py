@@ -57,7 +57,8 @@ from yasin_mcp.tools.registry import (
     TOOL_LIST_PROJECTS,
     RegistryToolset,
 )
-from yasin_mcp.version import __version__
+from yasin_mcp.capabilities.surface import surface_metadata
+from yasin_mcp.version import CAPABILITY_SURFACE_VERSION, __version__
 
 SERVER_NAME: Final[str] = "Yasin-MCP"
 TRANSPORT_STDIO: Final[Literal["stdio"]] = "stdio"
@@ -93,7 +94,10 @@ class ServerRuntime:
 
         server = MCPServer(
             SERVER_NAME,
-            description="AI/Agent-facing access layer for the Yasin ecosystem",
+            description=(
+                "AI/Agent-facing access layer for the Yasin ecosystem "
+                f"(capability surface {CAPABILITY_SURFACE_VERSION})"
+            ),
             version=__version__,
         )
 
@@ -156,6 +160,10 @@ class ServerRuntime:
             server.add_tool(toolset.diagnostics, name=TOOL_DIAGNOSTICS, structured_output=True)
 
         return cls(resolved_config, server, resolved_registry)
+
+    def surface_info(self) -> dict[str, object]:
+        """Return capability surface compatibility metadata."""
+        return surface_metadata()
 
     def capability_catalog(self) -> CapabilityCatalog:
         """Return the current deterministic capability discovery snapshot."""
