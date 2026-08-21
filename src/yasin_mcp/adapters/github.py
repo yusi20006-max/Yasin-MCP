@@ -279,7 +279,7 @@ class GitHubAdapter:
                 title=str(item.get("title", "")),
                 state=str(item.get("state", "")),
                 draft=bool(item.get("draft", False)),
-            html_url=str(item.get("html_url", "")),
+                html_url=str(item.get("html_url", "")),
                 source_url=f"{GITHUB_API}/repos/{owner}/{repository}/pulls/{item.get('number', 0)}",
             )
             for item in payload[:limit]
