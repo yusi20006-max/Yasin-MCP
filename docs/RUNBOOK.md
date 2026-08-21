@@ -44,6 +44,7 @@ Default CI and local unit tests do **not** require secrets.
 
 ```python
 from yasin_mcp.server.runtime import ServerRuntime
+
 rt = ServerRuntime.create()
 print(rt.surface_info())
 # package_version, capability_surface_version, operations_available, prefixes...
