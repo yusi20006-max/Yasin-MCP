@@ -20,3 +20,24 @@ def test_runtime_exposes_surface_info() -> None:
     runtime = ServerRuntime.create()
     info = runtime.surface_info()
     assert info["capability_surface_version"] == CAPABILITY_SURFACE_VERSION
+
+
+def test_runtime_surface_info_reports_operations_availability() -> None:
+    from unittest.mock import MagicMock
+
+    from yasin_mcp.adapters.operations import OperationsAdapter
+    from yasin_mcp.server.runtime import ServerRuntime
+
+    unavailable = MagicMock(spec=OperationsAdapter)
+    unavailable.available = False
+    runtime = ServerRuntime.create(operations_adapter=unavailable)
+    info = runtime.surface_info()
+    assert info["operations_available"] is False
+    assert runtime.operations_available is False
+
+    available = MagicMock(spec=OperationsAdapter)
+    available.available = True
+    runtime2 = ServerRuntime.create(operations_adapter=available)
+    info2 = runtime2.surface_info()
+    assert info2["operations_available"] is True
+    assert runtime2.operations_available is True
