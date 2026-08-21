@@ -132,3 +132,51 @@ def test_invalid_numbers_are_rejected(adapter: GitHubAdapter) -> None:
         adapter.get_issue("yusi", "Yasin", 0)
     with pytest.raises(ValidationError):
         adapter.get_pull_request("yusi", "Yasin", 0)
+
+
+def test_list_commits_branches_releases(adapter: GitHubAdapter) -> None:
+    def requester(url: str, headers: dict[str, str], timeout: int):
+        if url.endswith("/commits?per_page=20"):
+            return [
+                {
+                    "sha": "abc123",
+                    "html_url": "https://github.com/yusi/Yasin/commit/abc123",
+                    "commit": {
+                        "message": "feat: x\n\nbody",
+                        "author": {"name": "dev", "date": "2026-01-01T00:00:00Z"},
+                    },
+                }
+            ]
+        if url.endswith("/branches?per_page=20"):
+            return [{"name": "main", "protected": True, "commit": {"sha": "abc123"}}]
+        if url.endswith("/releases?per_page=20"):
+            return [
+                {
+                    "tag_name": "v1.0.0",
+                    "name": "v1.0.0",
+                    "draft": False,
+                    "prerelease": False,
+                    "html_url": "https://github.com/yusi/Yasin/releases/tag/v1.0.0",
+                    "published_at": "2026-01-01T00:00:00Z",
+                }
+            ]
+        raise AssertionError(url)
+
+    rich = GitHubAdapter(timeout_seconds=10, requester=requester)
+    commits = rich.list_commits("yusi", "Yasin")
+    assert commits[0].sha == "abc123"
+    assert commits[0].message == "feat: x"
+    assert commits[0].as_dict()["evidence_status"] == "confirmed"
+    branches = rich.list_branches("yusi", "Yasin")
+    assert branches[0].name == "main"
+    assert branches[0].protected is True
+    releases = rich.list_releases("yusi", "Yasin")
+    assert releases[0].tag_name == "v1.0.0"
+    assert releases[0].as_dict()["provenance"]["source"] == "github"
+
+
+def test_repository_as_dict_has_provenance(adapter: GitHubAdapter) -> None:
+    info = adapter.get_repository("yusi", "Yasin")
+    payload = info.as_dict()
+    assert payload["evidence_status"] == "confirmed"
+    assert payload["provenance"]["source"] == "github"

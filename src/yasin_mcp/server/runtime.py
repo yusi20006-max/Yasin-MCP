@@ -8,8 +8,10 @@ from typing import Final, Literal
 from mcp.server import MCPServer
 
 from yasin_mcp.adapters.docs import YasinDocsAdapter
+from yasin_mcp.adapters.github import GitHubAdapter
 from yasin_mcp.adapters.operations import OperationsAdapter
 from yasin_mcp.capabilities.docs_registration import register_docs_tools
+from yasin_mcp.capabilities.github_registration import register_github_tools
 from yasin_mcp.capabilities.operations_registration import register_operations_tools
 from yasin_mcp.capabilities.registry import (
     CapabilityCatalog,
@@ -26,6 +28,19 @@ from yasin_mcp.tools.docs import (
     TOOL_LIST_DOCS,
     TOOL_SEARCH_DOCS,
     DocsToolset,
+)
+from yasin_mcp.tools.github import (
+    TOOL_COMMIT_STATUS,
+    TOOL_GET_ISSUE,
+    TOOL_GET_PR,
+    TOOL_GET_REPO,
+    TOOL_LIST_BRANCHES,
+    TOOL_LIST_COMMITS,
+    TOOL_LIST_ISSUES,
+    TOOL_LIST_PRS,
+    TOOL_LIST_RELEASES,
+    TOOL_LIST_WORKFLOWS,
+    GitHubToolset,
 )
 from yasin_mcp.tools.operations import (
     TOOL_DIAGNOSTICS,
@@ -55,6 +70,7 @@ class ServerRuntime:
         registry: CapabilityRegistry | None = None,
         operations_adapter: OperationsAdapter | None = None,
         docs_adapter: YasinDocsAdapter | None = None,
+        github_adapter: GitHubAdapter | None = None,
     ) -> ServerRuntime:
         """Construct the MCP server and register safe read-only tools."""
         resolved_config = config if config is not None else ServerConfig()
@@ -89,6 +105,28 @@ class ServerRuntime:
             name=TOOL_GET_PROJECT_ARCHITECTURE,
             structured_output=True,
         )
+
+        # GitHub tools are always registered (public API; optional token).
+        register_github_tools(resolved_registry)
+        gh = github_adapter
+        if gh is None:
+            gh = GitHubAdapter(
+                token=resolved_config.github_token,
+                timeout_seconds=resolved_config.request_timeout_seconds,
+            )
+        gh_tools = GitHubToolset(gh)
+        server.add_tool(gh_tools.get_repository, name=TOOL_GET_REPO, structured_output=True)
+        server.add_tool(gh_tools.list_issues, name=TOOL_LIST_ISSUES, structured_output=True)
+        server.add_tool(gh_tools.get_issue, name=TOOL_GET_ISSUE, structured_output=True)
+        server.add_tool(gh_tools.list_pull_requests, name=TOOL_LIST_PRS, structured_output=True)
+        server.add_tool(gh_tools.get_pull_request, name=TOOL_GET_PR, structured_output=True)
+        server.add_tool(gh_tools.list_commits, name=TOOL_LIST_COMMITS, structured_output=True)
+        server.add_tool(gh_tools.get_commit_status, name=TOOL_COMMIT_STATUS, structured_output=True)
+        server.add_tool(
+            gh_tools.list_workflow_runs, name=TOOL_LIST_WORKFLOWS, structured_output=True
+        )
+        server.add_tool(gh_tools.list_branches, name=TOOL_LIST_BRANCHES, structured_output=True)
+        server.add_tool(gh_tools.list_releases, name=TOOL_LIST_RELEASES, structured_output=True)
 
         # Operations tools only when the gateway executable is available.
         operations_registered = register_operations_tools(resolved_registry, ops_adapter)

@@ -1,8 +1,4 @@
-"""Bounded, read-only GitHub adapter.
-
-Only explicit allow-listed endpoints are exposed. There is no generic request
-method, so callers cannot turn this adapter into an arbitrary GitHub API proxy.
-"""
+"""Bounded, read-only GitHub adapter."""
 
 from __future__ import annotations
 
@@ -23,6 +19,7 @@ from yasin_mcp.errors.errors import (
     UpstreamError,
     ValidationError,
 )
+from yasin_mcp.version import EvidenceStatus
 
 GITHUB_API = "https://api.github.com"
 API_VERSION = "2026-03-10"
@@ -30,6 +27,20 @@ MAX_SEARCH_RESULTS = 50
 MAX_RESPONSE_BYTES = 1_000_000
 
 JsonRequester = Callable[[str, dict[str, str], int], Any]
+
+
+def _meta(source_url: str, html_url: str = "") -> dict[str, Any]:
+    prov: dict[str, Any] = {"source": "github", "source_url": source_url}
+    if html_url:
+        prov["html_url"] = html_url
+    out: dict[str, Any] = {
+        "source_url": source_url,
+        "evidence_status": EvidenceStatus.CONFIRMED.value,
+        "provenance": prov,
+    }
+    if html_url:
+        out["html_url"] = html_url
+    return out
 
 
 @dataclass(frozen=True)
@@ -41,6 +52,15 @@ class RepositoryInfo:
     html_url: str
     source_url: str
 
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "full_name": self.full_name,
+            "default_branch": self.default_branch,
+            "description": self.description,
+            "private": self.private,
+            **_meta(self.source_url, self.html_url),
+        }
+
 
 @dataclass(frozen=True)
 class IssueInfo:
@@ -49,6 +69,14 @@ class IssueInfo:
     state: str
     html_url: str
     source_url: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "number": self.number,
+            "title": self.title,
+            "state": self.state,
+            **_meta(self.source_url, self.html_url),
+        }
 
 
 @dataclass(frozen=True)
@@ -60,6 +88,15 @@ class PullRequestInfo:
     html_url: str
     source_url: str
 
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "number": self.number,
+            "title": self.title,
+            "state": self.state,
+            "draft": self.draft,
+            **_meta(self.source_url, self.html_url),
+        }
+
 
 @dataclass(frozen=True)
 class CommitStatus:
@@ -67,6 +104,70 @@ class CommitStatus:
     state: str
     total_count: int
     source_url: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "sha": self.sha,
+            "state": self.state,
+            "total_count": self.total_count,
+            **_meta(self.source_url),
+        }
+
+
+@dataclass(frozen=True)
+class CommitInfo:
+    sha: str
+    message: str
+    author: str
+    date: str
+    html_url: str
+    source_url: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "sha": self.sha,
+            "message": self.message,
+            "author": self.author,
+            "date": self.date,
+            **_meta(self.source_url, self.html_url),
+        }
+
+
+@dataclass(frozen=True)
+class BranchInfo:
+    name: str
+    protected: bool
+    commit_sha: str
+    source_url: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "protected": self.protected,
+            "commit_sha": self.commit_sha,
+            **_meta(self.source_url),
+        }
+
+
+@dataclass(frozen=True)
+class ReleaseInfo:
+    tag_name: str
+    name: str
+    draft: bool
+    prerelease: bool
+    html_url: str
+    published_at: str | None
+    source_url: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "tag_name": self.tag_name,
+            "name": self.name,
+            "draft": self.draft,
+            "prerelease": self.prerelease,
+            "published_at": self.published_at,
+            **_meta(self.source_url, self.html_url),
+        }
 
 
 @dataclass(frozen=True)
@@ -77,9 +178,17 @@ class SearchResult:
     html_url: str
     source_url: str
 
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "path": self.path,
+            "repository": self.repository,
+            **_meta(self.source_url, self.html_url),
+        }
+
 
 class GitHubAdapter:
-    """Read-only GitHub API adapter with an explicit endpoint allow-list."""
+    """Read-only GitHub API adapter."""
 
     def __init__(
         self,
@@ -206,6 +315,70 @@ class GitHubAdapter:
             for run in runs[:limit]
         )
 
+    def list_commits(
+        self, owner: str, repository: str, *, limit: int = 20
+    ) -> tuple[CommitInfo, ...]:
+        owner, repository = _validate_repo(owner, repository)
+        limit = _validate_limit(limit)
+        payload = self._get(f"/repos/{owner}/{repository}/commits?per_page={limit}")
+        if not isinstance(payload, list):
+            raise UpstreamError("GitHub returned an unexpected commits shape")
+        results: list[CommitInfo] = []
+        for item in payload[:limit]:
+            sha = str(item.get("sha", ""))
+            commit = item.get("commit") or {}
+            author = commit.get("author") or {}
+            results.append(
+                CommitInfo(
+                    sha=sha,
+                    message=str(commit.get("message", "")).split("\n", 1)[0],
+                    author=str(author.get("name") or ""),
+                    date=str(author.get("date") or ""),
+                    html_url=str(item.get("html_url", "")),
+                    source_url=f"{GITHUB_API}/repos/{owner}/{repository}/commits/{sha}",
+                )
+            )
+        return tuple(results)
+
+    def list_branches(
+        self, owner: str, repository: str, *, limit: int = 20
+    ) -> tuple[BranchInfo, ...]:
+        owner, repository = _validate_repo(owner, repository)
+        limit = _validate_limit(limit)
+        payload = self._get(f"/repos/{owner}/{repository}/branches?per_page={limit}")
+        if not isinstance(payload, list):
+            raise UpstreamError("GitHub returned an unexpected branches shape")
+        return tuple(
+            BranchInfo(
+                name=str(item.get("name", "")),
+                protected=bool(item.get("protected", False)),
+                commit_sha=str((item.get("commit") or {}).get("sha", "")),
+                source_url=f"{GITHUB_API}/repos/{owner}/{repository}/branches",
+            )
+            for item in payload[:limit]
+        )
+
+    def list_releases(
+        self, owner: str, repository: str, *, limit: int = 20
+    ) -> tuple[ReleaseInfo, ...]:
+        owner, repository = _validate_repo(owner, repository)
+        limit = _validate_limit(limit)
+        payload = self._get(f"/repos/{owner}/{repository}/releases?per_page={limit}")
+        if not isinstance(payload, list):
+            raise UpstreamError("GitHub returned an unexpected releases shape")
+        return tuple(
+            ReleaseInfo(
+                tag_name=str(item.get("tag_name", "")),
+                name=str(item.get("name") or item.get("tag_name") or ""),
+                draft=bool(item.get("draft", False)),
+                prerelease=bool(item.get("prerelease", False)),
+                html_url=str(item.get("html_url", "")),
+                published_at=item.get("published_at"),
+                source_url=f"{GITHUB_API}/repos/{owner}/{repository}/releases",
+            )
+            for item in payload[:limit]
+        )
+
     def search_code(self, query: str, *, limit: int = 20) -> tuple[SearchResult, ...]:
         query = query.strip()
         if not query:
@@ -262,10 +435,6 @@ def _quote_query(query: str) -> str:
 def _request_json(url: str, headers: dict[str, str], timeout: int) -> Any:
     request = Request(url, headers=headers, method="GET")
     try:
-        # nosec B310: url is always constructed from the hardcoded
-        # GITHUB_API = "https://api.github.com" prefix (see module
-        # constants above) plus path segments this module builds
-        # itself -- never a caller-supplied scheme or arbitrary URL.
         with urlopen(request, timeout=timeout) as response:  # nosec B310
             raw = response.read(MAX_RESPONSE_BYTES + 1)
     except HTTPError as exc:
