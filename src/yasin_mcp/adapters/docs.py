@@ -25,6 +25,7 @@ from yasin_mcp.errors.errors import (
     UpstreamError,
     ValidationError,
 )
+from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 from yasin_mcp.version import EvidenceStatus
 
 GITHUB_API = "https://api.github.com"
@@ -60,7 +61,7 @@ class Document:
     content_kind: str = "documentation"
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        base = {
             "path": self.path,
             "content": self.content,
             "source_url": self.source_url,
@@ -78,6 +79,11 @@ class Document:
                 "source_url": self.source_url,
             },
         }
+        return attach_untrusted_envelope(
+            base,
+            source="yasin-docs",
+            text_for_markers=self.content,
+        )
 
 
 @dataclass(frozen=True)
