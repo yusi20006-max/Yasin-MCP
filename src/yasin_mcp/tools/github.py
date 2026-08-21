@@ -54,9 +54,7 @@ class GitHubToolset:
             raise ValidationError("number must be an integer")
         return self._adapter.get_issue(owner, repository, number).as_dict()
 
-    def list_pull_requests(
-        self, owner: str, repository: str, limit: int = 20
-    ) -> dict[str, Any]:
+    def list_pull_requests(self, owner: str, repository: str, limit: int = 20) -> dict[str, Any]:
         if not isinstance(owner, str) or not isinstance(repository, str):
             raise ValidationError("owner and repository must be strings")
         items = self._adapter.list_pull_requests(owner, repository, limit=limit)
@@ -94,9 +92,7 @@ class GitHubToolset:
             raise ValidationError("sha must be a string")
         return self._adapter.get_commit_status(owner, repository, sha).as_dict()
 
-    def list_workflow_runs(
-        self, owner: str, repository: str, limit: int = 20
-    ) -> dict[str, Any]:
+    def list_workflow_runs(self, owner: str, repository: str, limit: int = 20) -> dict[str, Any]:
         if not isinstance(owner, str) or not isinstance(repository, str):
             raise ValidationError("owner and repository must be strings")
         runs = self._adapter.list_workflow_runs(owner, repository, limit=limit)
