@@ -42,14 +42,7 @@ TOOL_MAP: Mapping[str, Mapping[str, str]] = {
 
 
 def _result_to_dict(result: OperationsResult) -> dict[str, Any]:
-    return {
-        "success": result.success,
-        "status": result.status,
-        "data": dict(result.data),
-        "error": dict(result.error) if result.error is not None else None,
-        "source": result.source,
-        "evidence_status": result.evidence_status.value,
-    }
+    return result.as_dict()
 
 
 class OperationsToolset:
