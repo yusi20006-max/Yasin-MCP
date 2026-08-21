@@ -14,6 +14,10 @@ from enum import Enum
 
 __version__ = "0.1.0"
 
+# Tool/capability surface version for client compatibility checks.
+# Bump when always-on tool names/schemas change in a client-visible way.
+CAPABILITY_SURFACE_VERSION = "1.1.0"
+
 
 class EvidenceStatus(str, Enum):
     """How confident a piece of returned information is.
