@@ -13,84 +13,93 @@ direct, unbounded access to any individual repository or service.
 
 ## Status
 
-**Phase 1 complete, plus a real MCP server runtime and a working
-Yasin-Operations integration.** As of this writing:
+**P0, P1, P2, and P3 are complete.** The repository is currently
+**READY_FOR_CONTROLLED_RELEASE**.
 
-- Issues #1–#10 (Phase 0 bootstrap through Phase 1 read-only
-  ecosystem/documentation/GitHub/diagnostics adapters) are merged.
-- A runnable MCP server (`ServerRuntime`, `server/cli.py`) exists
-  and starts over the stdio transport.
-- A working, read-only Yasin-Operations integration is wired into
-  the real server (four tools: `yasin_operations_list_services`,
-  `yasin_operations_service_status`, `yasin_operations_health`,
-  `yasin_operations_diagnostics`), registered only when the
-  `yasin-operations` executable is available. See
-  `docs/OPERATIONS_INTEGRATION.md` for the full architecture.
-- P0 audits (Issues #35–#37):
-  - `docs/AUDIT_P0_A1.md` — repository, CI, architecture, quality gate
-  - `docs/AUDIT_P0_A2.md` — ecosystem integration boundary
-  - `docs/AUDIT_P0_A3.md` — live MCP stdio runtime and real client
-    compatibility (official `mcp` ClientSession; initialize,
-    list_tools, invalid-tool error, graceful shutdown confirmed)
-- Post-P2 readiness: see `docs/RELEASE_READINESS.md`
-  (**READY_FOR_CONTROLLED_RELEASE**; not Production Ready).
+This status means the read-only MCP server has passed its repository,
+architecture, security-boundary, quality, and live stdio protocol
+validation gates. It is intentionally **not** classified as
+`PRODUCTION_READY` because vendor-specific external client sessions
+and always-on live upstream smoke tests are not mandatory evidence in
+this repository.
 
-This section previously stated "Phase 0, Issue #1 only" long after
-that had stopped being true across three merged PRs (#22, #32, #34)
-— left uncorrected, that is exactly the kind of documentation/
-implementation mismatch this project's own audit process exists to
-catch (see `docs/AUDIT_P0_A1.md` §8).
+### Completed phases
 
-### A note on architecture provenance
+- **P0 — Audit foundation:** Issues #35–#37 complete, including the
+  live MCP stdio audit with the official `mcp` client.
+- **P1 — Ecosystem integration and contracts:** Issues #38–#45
+  complete, covering YASIN-DOCS, GitHub, project registry,
+  Operations, agent/evidence contracts, E2E integration coverage,
+  and prompt-injection hardening.
+- **P2 — Runtime hardening:** P2-1 through P2-9 complete, including
+  untrusted-context enforcement, live MCP regression harness,
+  capability-surface versioning, request correlation and reliability
+  policy, registry validation, Operations discovery, and external
+  client smoke procedures.
+- **P3 — Documentation and release readiness:** Issues #51–#53
+  complete, including architecture documentation, operational
+  runbook, release-readiness assessment, and residual untrusted-data
+  path fixes.
 
-The originating task description for this project states that
-YASIN-DOCS is "the canonical architecture and boundary" for
-Yasin-MCP. Direct verification against the `yusi20006-max/YASIN-DOCS`
-repository (both a code search for "Yasin-MCP"/"MCP" and a direct
-check of `PROJECT_REGISTRY.yaml` and `ECOSYSTEM.md`) found **no
-mention of Yasin-MCP anywhere in that repository** as of this issue,
-and this remains true as of the P0 audits (`docs/AUDIT_P0_A1.md` §9,
-`docs/AUDIT_P0_A2.md`).
+### Current evidence classification
 
-This means the architecture implemented here is derived directly
-from this project's own Issue #1–#10 descriptions (which are
-detailed and self-consistent), not from a YASIN-DOCS document that
-does not currently exist. If/when YASIN-DOCS is updated to include
-Yasin-MCP, that should become the source of truth and this note
-should be removed or updated to reflect where it now lives.
+- MCP protocol and current tool surface: **CONFIRMED / LIVE_RUNTIME**
+- Read-only and deny-by-default boundaries: **CONFIRMED**
+- Untrusted content envelopes: **CONFIRMED**
+- Reliability and bounded retry policy: **CONFIRMED**
+- CI quality gates: **CONFIRMED**
+- Hermes live integration: **UNRESOLVED**
+- Yasin-Agent live session: **UNRESOLVED**
+- Optional live GitHub/Docs upstream CI: **UNRESOLVED / not required**
+- Global MCP-level request middleware: **PARTIAL**
+
+These classifications are deliberate. `UNRESOLVED` must never be
+presented as `CONFIRMED` merely because an integration is documented.
 
 ## Architecture boundary
 
 - Yasin-MCP does **not** replace YASIN-DOCS, Yasin-Core, Yasin-Agent,
   Yasin-AI, YasinHub, YasinCLI, or Yasin-Operations.
-- Phase 1 is strictly **read-only**: no repository mutation, no
-  deployment, no lifecycle mutation (start/stop/restart), no memory
-  mutation, no arbitrary shell/command execution.
-- No private cross-repository imports. Integrations use public
-  APIs, SDKs, contracts, or explicit read-only adapters.
+- The MCP surface is strictly **read-only**: no repository mutation,
+  deployment, lifecycle mutation (start/stop/restart), memory mutation,
+  or arbitrary shell/command execution.
+- No private cross-repository imports. Integrations use public APIs,
+  SDKs, contracts, or explicit read-only adapters.
 - Existing Yasin projects must not become dependent on Yasin-MCP.
 - A deny-by-default policy boundary (`policies/policy.py`) rejects
-  any capability whose name matches a forbidden pattern (`exec`,
-  `shell`, `command`, `request`, `arbitrary`, `filesystem`,
-  `deploy`, `delete`, `start_`/`stop_`/`restart_`) or that declares
-  itself mutating while Phase 1 is in effect — enforced at
-  construction time, not just at registration.
+  forbidden or mutating capabilities at construction time.
+
+## Tool surface
+
+Always available:
+
+- `yasin_docs_*` — documentation access
+- `yasin_github_*` — read-only GitHub ecosystem access
+- `yasin_registry_*` — project/dependency registry access
+
+Conditionally available:
+
+- `yasin_operations_*` — registered only when the
+  `yasin-operations` executable is available on `PATH`.
+
+The exact capability surface is versioned independently through
+`CAPABILITY_SURFACE_VERSION` and exposed through `surface_info()`.
 
 ## Package layout
 
 ```
 src/yasin_mcp/
-    server/        MCP server runtime (Issue #4)
-    protocol/       MCP protocol types/boundary (Issue #2)
-    capabilities/   capability descriptor + discovery (Issue #2)
-    tools/          MCP tool implementations (Issue #4+)
-    resources/      MCP resource implementations (Issue #4+)
-    adapters/       domain adapters: YASIN-DOCS, GitHub, Yasin-Operations (Issue #5-7)
-    policies/       deny-by-default policy boundary
-    errors/         structured error model (McpError + ErrorCategory)
-    audit/          structured logging, correlation IDs
-    config/         configuration model, secret handling
-    version.py      package version, EvidenceStatus enum
+    server/        MCP server runtime
+    protocol/      MCP protocol types/boundary
+    capabilities/  capability descriptor + discovery
+    tools/         MCP tool implementations
+    resources/     MCP resource implementations
+    adapters/      domain adapters: YASIN-DOCS, GitHub, Operations
+    policies/      deny-by-default policy boundary
+    errors/        structured error model
+    audit/         structured logging, correlation IDs
+    config/        configuration model, secret handling
+    version.py     package version, EvidenceStatus and surface version
 ```
 
 ## Evidence model
@@ -104,6 +113,18 @@ one of:
 - `PROPOSED` — a suggestion or plan, not yet implemented anywhere
 - `UNRESOLVED` — could not be determined; must not be presented as fact
 
+## Security boundary
+
+Yasin-MCP treats retrieved documentation, GitHub content, registry
+content, and Operations output as external/untrusted data. Structural
+trust envelopes preserve the distinction between retrieved data and
+instructions; keyword detection is not treated as a sufficient
+security control.
+
+The server is intentionally read-only and deny-by-default. There is
+no generic shell passthrough, arbitrary command execution, mutation
+surface, or implicit trust elevation for external content.
+
 ## Yasin-Operations integration
 
 Yasin-MCP exposes four read-only MCP tools over Yasin-Operations
@@ -115,6 +136,50 @@ executable is available. See
 [`docs/OPERATIONS_INTEGRATION.md`](docs/OPERATIONS_INTEGRATION.md)
 for the full architecture, safety boundary, availability behavior,
 and known limitations.
+
+## Termux / Android
+
+Yasin-MCP is intended to be runnable on Termux as a normal Python
+package and does not require a desktop-only runtime.
+
+Recommended baseline:
+
+- Termux with a current Python 3.x package
+- Git
+- A network connection for GitHub/YASIN-DOCS integrations
+- Optional `yasin-operations` executable only when Operations tools
+  are required
+
+Basic installation:
+
+```bash
+pkg update
+pkg install git python
+
+git clone https://github.com/yusi20006-max/Yasin-MCP.git
+cd Yasin-MCP
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+Run the MCP server over stdio:
+
+```bash
+yasin-mcp
+```
+
+For a minimal installation without development tooling:
+
+```bash
+pip install -e .
+yasin-mcp
+```
+
+Termux support is a compatibility target and should be validated on a
+real Android/Termux environment before being treated as a confirmed
+platform-specific release claim.
 
 ## Development
 
