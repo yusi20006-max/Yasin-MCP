@@ -77,6 +77,22 @@ class OperationsResult:
     evidence_status: EvidenceStatus
     source: str
 
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "operation": self.operation,
+            "success": self.success,
+            "status": self.status,
+            "data": dict(self.data),
+            "error": dict(self.error) if self.error else None,
+            "evidence_status": self.evidence_status.value,
+            "source": self.source,
+            "provenance": {
+                "source": "yasin-operations",
+                "gateway": self.source,
+                "operation": self.operation,
+            },
+        }
+
 
 def _executable_available(executable: str) -> bool:
     return shutil.which(executable) is not None
@@ -84,11 +100,6 @@ def _executable_available(executable: str) -> bool:
 
 def _build_request(operation: str, target_kind: str, target_identifier: str) -> dict[str, Any]:
     if operation not in _ALLOWED_OPERATIONS:
-        # Defensive: this function is only ever called by this
-        # module's own hardcoded call sites below, never with a
-        # caller-supplied operation, so this branch should be
-        # unreachable in practice -- but it must fail closed if it
-        # is ever reached.
         raise ValidationError(
             f"operation {operation!r} is not permitted through the Operations adapter",
             details={"operation": operation},
@@ -109,15 +120,7 @@ def _build_request(operation: str, target_kind: str, target_identifier: str) -> 
 
 
 class OperationsAdapter:
-    """Read-only client for the Yasin-Operations JSONL gateway.
-
-    Each call spawns a fresh gateway subprocess, writes exactly one
-    request line, reads exactly one response line, and terminates
-    the subprocess. This keeps the adapter simple and avoids holding
-    a long-lived subprocess whose lifecycle would need separate
-    health management; the cost is one process spawn per call, which
-    is acceptable for a diagnostics/inspection interface.
-    """
+    """Read-only client for the Yasin-Operations JSONL gateway."""
 
     def __init__(
         self,
@@ -131,12 +134,7 @@ class OperationsAdapter:
 
     @property
     def available(self) -> bool:
-        """Whether the gateway executable can be found on PATH.
-
-        This is a cheap, non-blocking check (no subprocess is
-        spawned) used by capability registration to decide whether
-        to advertise the Operations tools at all.
-        """
+        """Whether the gateway executable can be found on PATH."""
         return _executable_available(self.executable)
 
     def _invoke(self, operation: str, target_kind: str, target_identifier: str) -> OperationsResult:
@@ -150,7 +148,7 @@ class OperationsAdapter:
         line = json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n"
 
         try:
-            completed = subprocess.run(  # noqa: S603 - fixed argv, no shell, no user-controlled command
+            completed = subprocess.run(  # noqa: S603
                 [self.executable, "gateway"],
                 input=line,
                 capture_output=True,
