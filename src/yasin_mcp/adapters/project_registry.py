@@ -187,9 +187,7 @@ def _extract_entries(data: Any) -> list[dict[str, Any]]:
             return [
                 {"name": name, **item} for name, item in value.items() if isinstance(item, dict)
             ]
-    if isinstance(data, dict) and (
-        "name" in data or "project" in data or "id" in data
-    ):
+    if isinstance(data, dict) and ("name" in data or "project" in data or "id" in data):
         return [data]
     return []
 
