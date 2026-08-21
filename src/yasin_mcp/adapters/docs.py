@@ -143,18 +143,14 @@ class YasinDocsAdapter:
 
     def get_doc(self, path: str) -> Document:
         _validate_path(path)
-        payload = self._get(
-            f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/contents/{path}?ref={DOCS_REF}"
-        )
+        payload = self._get(f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/contents/{path}?ref={DOCS_REF}")
         if payload.get("type") != "file":
             raise ValidationError("requested documentation path is not a file")
         encoded = payload.get("content")
         if not isinstance(encoded, str):
             raise UpstreamError("YASIN-DOCS file response did not contain content")
         try:
-            content = base64.b64decode(encoded.replace("\n", ""), validate=True).decode(
-                "utf-8"
-            )
+            content = base64.b64decode(encoded.replace("\n", ""), validate=True).decode("utf-8")
         except (ValueError, UnicodeDecodeError) as exc:
             raise UpstreamError("YASIN-DOCS file content could not be decoded") from exc
         if len(content.encode("utf-8")) > MAX_DOCUMENT_BYTES:
@@ -177,9 +173,7 @@ class YasinDocsAdapter:
             matches = document.content.casefold().count(normalized)
             if matches:
                 results.append(DocumentSearchResult(document=document, matches=matches))
-        return tuple(
-            sorted(results, key=lambda item: (-item.matches, item.document.path))
-        )
+        return tuple(sorted(results, key=lambda item: (-item.matches, item.document.path)))
 
     def get_adr(self, name: str) -> Document:
         normalized = name.strip()
@@ -207,22 +201,16 @@ class YasinDocsAdapter:
                 continue
             if normalized.casefold() in result.document.content.casefold():
                 return result.document
-        raise NotFoundError(
-            f"No architecture document was found for project {project!r}"
-        )
+        raise NotFoundError(f"No architecture document was found for project {project!r}")
 
     def list_adrs(self) -> tuple[DocumentRef, ...]:
-        return tuple(
-            ref for ref in self.list_documents() if ref.path.startswith("docs/adr/")
-        )
+        return tuple(ref for ref in self.list_documents() if ref.path.startswith("docs/adr/"))
 
     def list_architecture_docs(self) -> tuple[DocumentRef, ...]:
         refs: list[DocumentRef] = []
         for ref in self.list_documents():
             path = ref.path
-            if path == "ARCHITECTURE.md" or path.lower().startswith(
-                "docs/architecture/"
-            ):
+            if path == "ARCHITECTURE.md" or path.lower().startswith("docs/architecture/"):
                 refs.append(ref)
         return tuple(refs)
 
@@ -243,8 +231,7 @@ class YasinDocsAdapter:
         return tuple(
             item
             for item in results
-            if item.document.path == prefix
-            or item.document.path.startswith(prefix + "/")
+            if item.document.path == prefix or item.document.path.startswith(prefix + "/")
         )
 
     def _get(self, path: str) -> dict[str, Any]:
@@ -279,9 +266,7 @@ def _request_json(url: str, headers: dict[str, str], timeout: int) -> dict[str, 
         if exc.code == 404:
             raise NotFoundError("YASIN-DOCS resource was not found") from exc
         if exc.code == 403:
-            raise RateLimitedError(
-                "GitHub denied the request or rate limit was reached"
-            ) from exc
+            raise RateLimitedError("GitHub denied the request or rate limit was reached") from exc
         raise UpstreamError(f"GitHub returned HTTP {exc.code}") from exc
     except TimeoutError as exc:
         raise TimeoutMcpError("GitHub request timed out") from exc
