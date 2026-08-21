@@ -1,6 +1,9 @@
 """Read-only normalization of the YASIN-DOCS project registry.
 
 Unknown fields stay unknown. Dependency direction is explicit when present.
+Malformed or nameless entries are skipped during list; invalid YAML raises
+ValidationError. Missing registry file raises UnavailableDependencyError
+(runtime UNRESOLVED).
 """
 
 from __future__ import annotations
@@ -13,6 +16,8 @@ from yasin_mcp.errors.errors import NotFoundError, UnavailableDependencyError, V
 from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 from yasin_mcp.version import EvidenceStatus
 
+# Canonical search order for the cross-repository registry file.
+# First hit wins; paths are relative to the configured YASIN-DOCS root.
 REGISTRY_CANDIDATES = (
     "docs/projects/PROJECT_REGISTRY.yaml",
     "docs/projects/PROJECT_REGISTRY.yml",
@@ -79,7 +84,15 @@ class ProjectRegistryAdapter:
     def list_projects(self) -> tuple[ProjectMetadata, ...]:
         data, source = self._load_registry()
         entries = _extract_entries(data)
-        return tuple(self._normalize(entry, source) for entry in entries)
+        results: list[ProjectMetadata] = []
+        for entry in entries:
+            try:
+                results.append(self._normalize(entry, source))
+            except ValidationError:
+                # Nameless / unusable entries are skipped so one bad row
+                # does not poison the whole catalog.
+                continue
+        return tuple(results)
 
     def get_project(self, name: str) -> ProjectMetadata:
         normalized = name.strip().casefold()
@@ -92,7 +105,7 @@ class ProjectRegistryAdapter:
 
     def list_dependencies(self, name: str) -> dict[str, Any]:
         project = self.get_project(name)
-        return {
+        base: dict[str, Any] = {
             "project": project.name,
             "depends_on": list(project.dependencies),
             "dependency_direction": "outbound",
@@ -104,6 +117,11 @@ class ProjectRegistryAdapter:
             },
             "unknowns": [] if project.dependencies else ["dependencies not declared in registry"],
         }
+        return attach_untrusted_envelope(
+            base,
+            source="yasin-docs-registry",
+            text_for_markers=project.name,
+        )
 
     def _load_registry(self) -> tuple[Any, Any]:
         for path in REGISTRY_CANDIDATES:
@@ -151,6 +169,8 @@ def _parse_registry(content: str) -> Any:
         value = yaml.safe_load(content)
     except yaml.YAMLError as exc:
         raise ValidationError("YASIN-DOCS project registry is invalid YAML") from exc
+    if value is None:
+        raise ValidationError("YASIN-DOCS project registry is empty")
     if not isinstance(value, (dict, list)):
         raise ValidationError("YASIN-DOCS project registry must be a mapping or list")
     return value
@@ -167,7 +187,9 @@ def _extract_entries(data: Any) -> list[dict[str, Any]]:
             return [
                 {"name": name, **item} for name, item in value.items() if isinstance(item, dict)
             ]
-    return [data]
+    if isinstance(data, dict) and ("name" in data or "project" in data or "id" in data):
+        return [data]
+    return []
 
 
 def _first_string(entry: dict[str, Any], *keys: str) -> str | None:
