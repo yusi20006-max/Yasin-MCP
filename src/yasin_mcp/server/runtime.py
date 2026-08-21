@@ -58,7 +58,9 @@ class ServerRuntime:
         if operations_registered:
             toolset = OperationsToolset(adapter)
             server.add_tool(toolset.list_services, name=TOOL_LIST_SERVICES, structured_output=True)
-            server.add_tool(toolset.service_status, name=TOOL_SERVICE_STATUS, structured_output=True)
+            server.add_tool(
+                toolset.service_status, name=TOOL_SERVICE_STATUS, structured_output=True
+            )
             server.add_tool(toolset.health, name=TOOL_HEALTH, structured_output=True)
             server.add_tool(toolset.diagnostics, name=TOOL_DIAGNOSTICS, structured_output=True)
 
