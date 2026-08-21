@@ -13,12 +13,29 @@ direct, unbounded access to any individual repository or service.
 
 ## Status
 
-**Phase 0, Issue #1 (Repository Bootstrap and Engineering Baseline)
-only.** No MCP server runtime exists yet. No domain adapter
-(YASIN-DOCS, GitHub, Yasin-Operations) exists yet. This issue only
-establishes the package structure, tooling, and the safety
-primitives (error model, deny-by-default policy, secret handling)
-that everything else will build on.
+**Phase 1 complete, plus a real MCP server runtime and a working
+Yasin-Operations integration.** As of this writing:
+
+- Issues #1–#10 (Phase 0 bootstrap through Phase 1 read-only
+  ecosystem/documentation/GitHub/diagnostics adapters) are merged.
+- A runnable MCP server (`ServerRuntime`, `server/cli.py`) exists
+  and starts over the stdio transport.
+- A working, read-only Yasin-Operations integration is wired into
+  the real server (four tools: `yasin_operations_list_services`,
+  `yasin_operations_service_status`, `yasin_operations_health`,
+  `yasin_operations_diagnostics`), registered only when the
+  `yasin-operations` executable is available. See
+  `docs/OPERATIONS_INTEGRATION.md` for the full architecture.
+- See `docs/AUDIT_P0_A1.md` for the current evidence-based audit
+  of exactly what is CONFIRMED vs TARGET vs UNRESOLVED across the
+  whole repository, including known gaps (e.g. the CLI entrypoint's
+  test coverage).
+
+This section previously stated "Phase 0, Issue #1 only" long after
+that had stopped being true across three merged PRs (#22, #32, #34)
+— left uncorrected, that is exactly the kind of documentation/
+implementation mismatch this project's own audit process exists to
+catch (see `docs/AUDIT_P0_A1.md` §8).
 
 ### A note on architecture provenance
 
@@ -27,7 +44,8 @@ YASIN-DOCS is "the canonical architecture and boundary" for
 Yasin-MCP. Direct verification against the `yusi20006-max/YASIN-DOCS`
 repository (both a code search for "Yasin-MCP"/"MCP" and a direct
 check of `PROJECT_REGISTRY.yaml` and `ECOSYSTEM.md`) found **no
-mention of Yasin-MCP anywhere in that repository** as of this issue.
+mention of Yasin-MCP anywhere in that repository** as of this issue,
+and this remains true as of the P0 audit above (`docs/AUDIT_P0_A1.md` §9).
 
 This means the architecture implemented here is derived directly
 from this project's own Issue #1–#10 descriptions (which are
