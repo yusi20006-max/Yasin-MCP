@@ -1,4 +1,7 @@
-"""Read-only normalization of the YASIN-DOCS project registry."""
+"""Read-only normalization of the YASIN-DOCS project registry.
+
+Unknown fields stay unknown. Dependency direction is explicit when present.
+"""
 
 from __future__ import annotations
 
@@ -20,13 +23,40 @@ REGISTRY_CANDIDATES = (
 @dataclass(frozen=True)
 class ProjectMetadata:
     name: str
+    role: str | None
     repository: str | None
     documentation: str | None
     status: str | None
     owner: str | None
+    dependencies: tuple[str, ...]
+    public_contracts: tuple[str, ...]
+    operational_state: str | None
+    mcp_capabilities: tuple[str, ...]
     source_path: str
     source_url: str
     evidence_status: EvidenceStatus
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "role": self.role,
+            "repository": self.repository,
+            "documentation": self.documentation,
+            "status": self.status,
+            "owner": self.owner,
+            "dependencies": list(self.dependencies),
+            "public_contracts": list(self.public_contracts),
+            "operational_state": self.operational_state,
+            "mcp_capabilities": list(self.mcp_capabilities),
+            "source_path": self.source_path,
+            "source_url": self.source_url,
+            "evidence_status": self.evidence_status.value,
+            "provenance": {
+                "source": "yasin-docs-registry",
+                "path": self.source_path,
+                "source_url": self.source_url,
+            },
+        }
 
 
 class ProjectRegistryAdapter:
@@ -49,6 +79,21 @@ class ProjectRegistryAdapter:
                 return project
         raise NotFoundError(f"project {name!r} is not present in the registry")
 
+    def list_dependencies(self, name: str) -> dict[str, Any]:
+        project = self.get_project(name)
+        return {
+            "project": project.name,
+            "depends_on": list(project.dependencies),
+            "dependency_direction": "outbound",
+            "evidence_status": project.evidence_status.value,
+            "provenance": {
+                "source": "yasin-docs-registry",
+                "path": project.source_path,
+                "source_url": project.source_url,
+            },
+            "unknowns": [] if project.dependencies else ["dependencies not declared in registry"],
+        }
+
     def _load_registry(self) -> tuple[Any, Any]:
         for path in REGISTRY_CANDIDATES:
             try:
@@ -67,10 +112,17 @@ class ProjectRegistryAdapter:
             raise ValidationError("project registry entry is missing a name")
         return ProjectMetadata(
             name=name,
+            role=_first_string(entry, "role", "type", "kind"),
             repository=_first_string(entry, "repository", "repo", "github"),
             documentation=_first_string(entry, "documentation", "docs", "doc"),
             status=_first_string(entry, "status", "state"),
             owner=_first_string(entry, "owner", "maintainer"),
+            dependencies=_string_list(entry, "dependencies", "depends_on", "deps"),
+            public_contracts=_string_list(entry, "public_contracts", "contracts", "apis"),
+            operational_state=_first_string(
+                entry, "operational_state", "ops_state", "runtime_state"
+            ),
+            mcp_capabilities=_string_list(entry, "mcp_capabilities", "mcp_tools", "capabilities"),
             source_path=source.path,
             source_url=source.source_url,
             evidence_status=source.evidence_status,
@@ -113,3 +165,17 @@ def _first_string(entry: dict[str, Any], *keys: str) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
+
+
+def _string_list(entry: dict[str, Any], *keys: str) -> tuple[str, ...]:
+    for key in keys:
+        value = entry.get(key)
+        if isinstance(value, list):
+            return tuple(
+                str(item).strip()
+                for item in value
+                if isinstance(item, (str, int)) and str(item).strip()
+            )
+        if isinstance(value, str) and value.strip():
+            return (value.strip(),)
+    return ()
