@@ -33,7 +33,5 @@ def test_runtime_accepts_dependency_free_registry() -> None:
     runtime = ServerRuntime.create(registry=registry)
     assert runtime.registry is registry
     assert len(runtime.capability_catalog().capabilities) == (
-        len(DOCS_TOOL_DEFINITIONS)
-        + len(GITHUB_TOOL_DEFINITIONS)
-        + len(REGISTRY_TOOL_DEFINITIONS)
+        len(DOCS_TOOL_DEFINITIONS) + len(GITHUB_TOOL_DEFINITIONS) + len(REGISTRY_TOOL_DEFINITIONS)
     )
