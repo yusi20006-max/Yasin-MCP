@@ -14,6 +14,7 @@ from typing import Any
 
 from yasin_mcp.adapters.docs import Document, DocumentRef, YasinDocsAdapter
 from yasin_mcp.errors.errors import ValidationError
+from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 
 TOOL_LIST_DOCS = "yasin_docs_list_documents"
 TOOL_GET_DOC = "yasin_docs_get_document"
@@ -25,7 +26,7 @@ TOOL_GET_PROJECT_ARCHITECTURE = "yasin_docs_get_project_architecture"
 
 
 def _ref_to_dict(ref: DocumentRef) -> dict[str, Any]:
-    return {
+    base = {
         "path": ref.path,
         "sha": ref.sha,
         "size": ref.size,
@@ -40,6 +41,7 @@ def _ref_to_dict(ref: DocumentRef) -> dict[str, Any]:
             "sha": ref.sha,
         },
     }
+    return attach_untrusted_envelope(base, source="yasin-docs", text_for_markers=ref.path)
 
 
 def _document_payload(document: Document) -> dict[str, Any]:

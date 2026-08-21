@@ -19,6 +19,7 @@ from yasin_mcp.errors.errors import (
     UpstreamError,
     ValidationError,
 )
+from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 from yasin_mcp.version import EvidenceStatus
 
 GITHUB_API = "https://api.github.com"
@@ -29,7 +30,12 @@ MAX_RESPONSE_BYTES = 1_000_000
 JsonRequester = Callable[[str, dict[str, str], int], Any]
 
 
-def _meta(source_url: str, html_url: str = "") -> dict[str, Any]:
+def _meta(
+    source_url: str,
+    html_url: str = "",
+    *,
+    text_for_markers: str | None = None,
+) -> dict[str, Any]:
     prov: dict[str, Any] = {"source": "github", "source_url": source_url}
     if html_url:
         prov["html_url"] = html_url
@@ -40,7 +46,11 @@ def _meta(source_url: str, html_url: str = "") -> dict[str, Any]:
     }
     if html_url:
         out["html_url"] = html_url
-    return out
+    return attach_untrusted_envelope(
+        out,
+        source="github",
+        text_for_markers=text_for_markers,
+    )
 
 
 @dataclass(frozen=True)

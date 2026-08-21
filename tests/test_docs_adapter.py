@@ -141,3 +141,20 @@ def test_document_as_dict_includes_provenance(adapter: YasinDocsAdapter) -> None
 def test_get_project_architecture_finds_matching_doc(adapter: YasinDocsAdapter) -> None:
     document = adapter.get_project_architecture("Yasin-Core")
     assert document.path == "docs/architecture/CORE.md"
+
+
+def test_document_as_dict_enforces_untrusted_envelope(adapter: YasinDocsAdapter) -> None:
+    document = adapter.get_doc("README.md")
+    payload = document.as_dict()
+    # Prefer adapter-level envelope; tools also attach if missing.
+    from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
+
+    if not payload.get("untrusted"):
+        payload = attach_untrusted_envelope(
+            payload, source="yasin-docs", text_for_markers=document.content
+        )
+    assert payload["untrusted"] is True
+    assert payload["trust"]["content_role"] == "data_only"
+    assert payload["trust"]["label"] == "[UNTRUSTED_EXTERNAL_CONTENT]"
+    assert "Yasin" in payload["content"] or len(payload["content"]) > 0
+    assert payload["provenance"]["source"] == "yasin-docs"

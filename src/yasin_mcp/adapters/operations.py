@@ -33,6 +33,7 @@ from yasin_mcp.errors.errors import (
     UnavailableDependencyError,
     ValidationError,
 )
+from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 from yasin_mcp.version import EvidenceStatus
 
 # Fixed, non-configurable set of operations this adapter will ever
@@ -78,11 +79,16 @@ class OperationsResult:
     source: str
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        data_dict = dict(self.data)
+        try:
+            marker_text = json.dumps(data_dict, default=str)[:50_000]
+        except (TypeError, ValueError):
+            marker_text = str(data_dict)[:50_000]
+        base = {
             "operation": self.operation,
             "success": self.success,
             "status": self.status,
-            "data": dict(self.data),
+            "data": data_dict,
             "error": dict(self.error) if self.error else None,
             "evidence_status": self.evidence_status.value,
             "source": self.source,
@@ -92,6 +98,11 @@ class OperationsResult:
                 "operation": self.operation,
             },
         }
+        return attach_untrusted_envelope(
+            base,
+            source="yasin-operations",
+            text_for_markers=marker_text,
+        )
 
 
 def _executable_available(executable: str) -> bool:

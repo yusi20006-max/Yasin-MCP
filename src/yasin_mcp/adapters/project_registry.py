@@ -10,6 +10,7 @@ from typing import Any
 
 from yasin_mcp.adapters.docs import YasinDocsAdapter
 from yasin_mcp.errors.errors import NotFoundError, UnavailableDependencyError, ValidationError
+from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 from yasin_mcp.version import EvidenceStatus
 
 REGISTRY_CANDIDATES = (
@@ -37,7 +38,12 @@ class ProjectMetadata:
     evidence_status: EvidenceStatus
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        marker_bits = [self.name]
+        if self.role:
+            marker_bits.append(self.role)
+        if self.documentation:
+            marker_bits.append(self.documentation)
+        base = {
             "name": self.name,
             "role": self.role,
             "repository": self.repository,
@@ -57,6 +63,11 @@ class ProjectMetadata:
                 "source_url": self.source_url,
             },
         }
+        return attach_untrusted_envelope(
+            base,
+            source="yasin-docs-registry",
+            text_for_markers="\n".join(marker_bits),
+        )
 
 
 class ProjectRegistryAdapter:
