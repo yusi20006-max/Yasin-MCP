@@ -44,6 +44,8 @@ class DocumentRef:
     sha: str
     size: int
     url: str
+    repository: str = f"{DOCS_OWNER}/{DOCS_REPOSITORY}"
+    ref: str = DOCS_REF
 
 
 @dataclass(frozen=True)
@@ -53,12 +55,38 @@ class Document:
     source_url: str
     sha: str
     evidence_status: EvidenceStatus
+    repository: str = f"{DOCS_OWNER}/{DOCS_REPOSITORY}"
+    ref: str = DOCS_REF
+    content_kind: str = "documentation"
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "content": self.content,
+            "source_url": self.source_url,
+            "sha": self.sha,
+            "repository": self.repository,
+            "ref": self.ref,
+            "content_kind": self.content_kind,
+            "evidence_status": self.evidence_status.value,
+            "provenance": {
+                "source": "yasin-docs",
+                "repository": self.repository,
+                "ref": self.ref,
+                "path": self.path,
+                "sha": self.sha,
+                "source_url": self.source_url,
+            },
+        }
 
 
 @dataclass(frozen=True)
 class DocumentSearchResult:
     document: Document
     matches: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"document": self.document.as_dict(), "matches": self.matches}
 
 
 class YasinDocsAdapter:
@@ -86,7 +114,6 @@ class YasinDocsAdapter:
         return f"{DOCS_OWNER}/{DOCS_REPOSITORY}"
 
     def list_documents(self) -> tuple[DocumentRef, ...]:
-        """Return bounded text-document metadata from the repository tree."""
         payload = self._get(
             f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/git/trees/{DOCS_REF}?recursive=1"
         )
@@ -115,7 +142,6 @@ class YasinDocsAdapter:
         return tuple(sorted(refs, key=lambda item: item.path))
 
     def get_doc(self, path: str) -> Document:
-        """Read one explicitly named document from YASIN-DOCS."""
         _validate_path(path)
         payload = self._get(f"/repos/{DOCS_OWNER}/{DOCS_REPOSITORY}/contents/{path}?ref={DOCS_REF}")
         if payload.get("type") != "file":
@@ -138,7 +164,6 @@ class YasinDocsAdapter:
         )
 
     def search_docs(self, query: str) -> tuple[DocumentSearchResult, ...]:
-        """Search bounded documentation content case-insensitively."""
         normalized = query.strip().casefold()
         if not normalized:
             raise ValidationError("query must not be empty")
@@ -151,13 +176,11 @@ class YasinDocsAdapter:
         return tuple(sorted(results, key=lambda item: (-item.matches, item.document.path)))
 
     def get_adr(self, name: str) -> Document:
-        """Resolve and read an ADR by path or filename."""
         normalized = name.strip()
         if not normalized:
             raise ValidationError("ADR name must not be empty")
-        candidates: tuple[str, ...]
         if "/" in normalized or normalized.lower().endswith((".md", ".mdx")):
-            candidates = (normalized,)
+            candidates: tuple[str, ...] = (normalized,)
         else:
             candidates = (f"docs/adr/{normalized}.md", f"docs/adr/{normalized}.mdx")
         for path in candidates:
@@ -168,19 +191,48 @@ class YasinDocsAdapter:
         raise NotFoundError(f"ADR {name!r} was not found")
 
     def get_project_architecture(self, project: str) -> Document:
-        """Resolve a project architecture document without inventing its existence."""
         normalized = project.strip()
         if not normalized:
             raise ValidationError("project must not be empty")
         matches = self.search_docs(normalized)
         for result in matches:
             path = result.document.path.lower()
-            if (
-                "architecture" in path
-                and normalized.casefold() in result.document.content.casefold()
-            ):
+            if "architecture" not in path:
+                continue
+            if normalized.casefold() in result.document.content.casefold():
                 return result.document
         raise NotFoundError(f"No architecture document was found for project {project!r}")
+
+    def list_adrs(self) -> tuple[DocumentRef, ...]:
+        return tuple(ref for ref in self.list_documents() if ref.path.startswith("docs/adr/"))
+
+    def list_architecture_docs(self) -> tuple[DocumentRef, ...]:
+        refs: list[DocumentRef] = []
+        for ref in self.list_documents():
+            path = ref.path
+            if path == "ARCHITECTURE.md" or path.lower().startswith("docs/architecture/"):
+                refs.append(ref)
+        return tuple(refs)
+
+    def search_docs_scoped(
+        self, query: str, *, path_prefix: str | None = None
+    ) -> tuple[DocumentSearchResult, ...]:
+        if path_prefix is not None:
+            prefix = path_prefix.strip().rstrip("/")
+            if prefix:
+                _validate_path(prefix)
+            else:
+                prefix = ""
+        else:
+            prefix = ""
+        results = self.search_docs(query)
+        if not prefix:
+            return results
+        return tuple(
+            item
+            for item in results
+            if item.document.path == prefix or item.document.path.startswith(prefix + "/")
+        )
 
     def _get(self, path: str) -> dict[str, Any]:
         url = f"{GITHUB_API}{path}"
@@ -206,10 +258,6 @@ def _validate_path(path: str) -> None:
 def _request_json(url: str, headers: dict[str, str], timeout: int) -> dict[str, Any]:
     request = Request(url, headers=headers, method="GET")
     try:
-        # nosec B310: url is always constructed from the hardcoded
-        # GITHUB_API = "https://api.github.com" prefix (see module
-        # constants above) plus path segments this module builds
-        # itself -- never a caller-supplied scheme or arbitrary URL.
         with urlopen(request, timeout=timeout) as response:  # nosec B310
             raw = response.read(MAX_DOCUMENT_BYTES + 1)
     except HTTPError as exc:

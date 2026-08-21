@@ -111,3 +111,33 @@ def test_empty_search_is_rejected(adapter: YasinDocsAdapter) -> None:
 def test_invalid_max_files_is_rejected() -> None:
     with pytest.raises(ValidationError):
         YasinDocsAdapter(max_files=0, requester=lambda *_: {})
+
+
+def test_list_adrs_filters_adr_paths(adapter: YasinDocsAdapter) -> None:
+    adrs = adapter.list_adrs()
+    assert [ref.path for ref in adrs] == ["docs/adr/ADR-0001.md"]
+    assert adrs[0].repository == f"{DOCS_OWNER}/{DOCS_REPOSITORY}"
+
+
+def test_list_architecture_docs(adapter: YasinDocsAdapter) -> None:
+    refs = adapter.list_architecture_docs()
+    assert [ref.path for ref in refs] == ["docs/architecture/CORE.md"]
+
+
+def test_search_docs_scoped_to_prefix(adapter: YasinDocsAdapter) -> None:
+    results = adapter.search_docs_scoped("architecture", path_prefix="docs/architecture")
+    assert [item.document.path for item in results] == ["docs/architecture/CORE.md"]
+
+
+def test_document_as_dict_includes_provenance(adapter: YasinDocsAdapter) -> None:
+    document = adapter.get_doc("README.md")
+    payload = document.as_dict()
+    assert payload["evidence_status"] == "confirmed"
+    assert payload["provenance"]["source"] == "yasin-docs"
+    assert payload["provenance"]["path"] == "README.md"
+    assert payload["repository"] == f"{DOCS_OWNER}/{DOCS_REPOSITORY}"
+
+
+def test_get_project_architecture_finds_matching_doc(adapter: YasinDocsAdapter) -> None:
+    document = adapter.get_project_architecture("Yasin-Core")
+    assert document.path == "docs/architecture/CORE.md"
