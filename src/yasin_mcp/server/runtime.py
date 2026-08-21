@@ -7,7 +7,9 @@ from typing import Final, Literal
 
 from mcp.server import MCPServer
 
+from yasin_mcp.adapters.docs import YasinDocsAdapter
 from yasin_mcp.adapters.operations import OperationsAdapter
+from yasin_mcp.capabilities.docs_registration import register_docs_tools
 from yasin_mcp.capabilities.operations_registration import register_operations_tools
 from yasin_mcp.capabilities.registry import (
     CapabilityCatalog,
@@ -15,6 +17,16 @@ from yasin_mcp.capabilities.registry import (
     discover_capabilities,
 )
 from yasin_mcp.config.config import ServerConfig
+from yasin_mcp.tools.docs import (
+    TOOL_GET_ADR,
+    TOOL_GET_DOC,
+    TOOL_GET_PROJECT_ARCHITECTURE,
+    TOOL_LIST_ADRS,
+    TOOL_LIST_ARCHITECTURE,
+    TOOL_LIST_DOCS,
+    TOOL_SEARCH_DOCS,
+    DocsToolset,
+)
 from yasin_mcp.tools.operations import (
     TOOL_DIAGNOSTICS,
     TOOL_HEALTH,
@@ -42,11 +54,18 @@ class ServerRuntime:
         config: ServerConfig | None = None,
         registry: CapabilityRegistry | None = None,
         operations_adapter: OperationsAdapter | None = None,
+        docs_adapter: YasinDocsAdapter | None = None,
     ) -> ServerRuntime:
-        """Construct the MCP server and conditionally register safe Operations tools."""
+        """Construct the MCP server and register safe read-only tools."""
         resolved_config = config if config is not None else ServerConfig()
         resolved_registry = registry if registry is not None else CapabilityRegistry()
-        adapter = operations_adapter if operations_adapter is not None else OperationsAdapter()
+        ops_adapter = operations_adapter if operations_adapter is not None else OperationsAdapter()
+        docs = docs_adapter
+        if docs is None:
+            docs = YasinDocsAdapter(
+                token=resolved_config.github_token,
+                timeout_seconds=resolved_config.request_timeout_seconds,
+            )
 
         server = MCPServer(
             SERVER_NAME,
@@ -54,9 +73,27 @@ class ServerRuntime:
             version=__version__,
         )
 
-        operations_registered = register_operations_tools(resolved_registry, adapter)
+        # YASIN-DOCS tools are always registered (public GitHub contract).
+        register_docs_tools(resolved_registry)
+        docs_tools = DocsToolset(docs)
+        server.add_tool(docs_tools.list_documents, name=TOOL_LIST_DOCS, structured_output=True)
+        server.add_tool(docs_tools.get_document, name=TOOL_GET_DOC, structured_output=True)
+        server.add_tool(docs_tools.search, name=TOOL_SEARCH_DOCS, structured_output=True)
+        server.add_tool(docs_tools.list_adrs, name=TOOL_LIST_ADRS, structured_output=True)
+        server.add_tool(docs_tools.get_adr, name=TOOL_GET_ADR, structured_output=True)
+        server.add_tool(
+            docs_tools.list_architecture, name=TOOL_LIST_ARCHITECTURE, structured_output=True
+        )
+        server.add_tool(
+            docs_tools.get_project_architecture,
+            name=TOOL_GET_PROJECT_ARCHITECTURE,
+            structured_output=True,
+        )
+
+        # Operations tools only when the gateway executable is available.
+        operations_registered = register_operations_tools(resolved_registry, ops_adapter)
         if operations_registered:
-            toolset = OperationsToolset(adapter)
+            toolset = OperationsToolset(ops_adapter)
             server.add_tool(toolset.list_services, name=TOOL_LIST_SERVICES, structured_output=True)
             server.add_tool(
                 toolset.service_status, name=TOOL_SERVICE_STATUS, structured_output=True
