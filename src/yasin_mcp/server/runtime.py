@@ -71,6 +71,7 @@ class ServerRuntime:
     config: ServerConfig
     server: MCPServer[object]
     registry: CapabilityRegistry
+    operations_available: bool = False
 
     @classmethod
     def create(
@@ -159,11 +160,23 @@ class ServerRuntime:
             server.add_tool(toolset.health, name=TOOL_HEALTH, structured_output=True)
             server.add_tool(toolset.diagnostics, name=TOOL_DIAGNOSTICS, structured_output=True)
 
-        return cls(resolved_config, server, resolved_registry)
+        return cls(
+            resolved_config,
+            server,
+            resolved_registry,
+            operations_available=operations_registered,
+        )
 
     def surface_info(self) -> dict[str, object]:
-        """Return capability surface compatibility metadata."""
-        return surface_metadata()
+        """Return capability surface compatibility metadata.
+
+        Includes operations_available so clients can discover whether
+        the optional Yasin-Operations gateway was registered without
+        invoking any tool.
+        """
+        meta = surface_metadata()
+        meta["operations_available"] = self.operations_available
+        return meta
 
     def capability_catalog(self) -> CapabilityCatalog:
         """Return the current deterministic capability discovery snapshot."""

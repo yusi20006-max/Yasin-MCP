@@ -31,3 +31,24 @@ MCP Client → yasin_operations_* tools → OperationsAdapter → subprocess
 ## Non-goals
 
 No command execution, lifecycle mutation, or duplication of Yasin-Operations business logic.
+
+## Availability discovery (P2-9)
+
+Clients can learn whether Operations tools are registered without
+calling any tool:
+
+```python
+runtime = ServerRuntime.create()
+info = runtime.surface_info()
+# info["operations_available"] is True iff yasin-operations is on PATH
+# and the four yasin_operations_* tools were registered.
+```
+
+| Signal | Meaning |
+|--------|---------|
+| `surface_info()["operations_available"] == True` | Gateway executable found; tools registered |
+| `surface_info()["operations_available"] == False` | Not on PATH; tools omitted; runtime healthy |
+| `list_tools` without `yasin_operations_*` | Same as above (discovery via catalog) |
+
+Discovery never elevates trust and never launches the gateway; it is
+a PATH check only (`shutil.which`).
