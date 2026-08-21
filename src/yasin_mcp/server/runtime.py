@@ -20,6 +20,7 @@ from yasin_mcp.capabilities.registry import (
     discover_capabilities,
 )
 from yasin_mcp.capabilities.registry_registration import register_registry_tools
+from yasin_mcp.capabilities.surface import surface_metadata
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.tools.docs import (
     TOOL_GET_ADR,
@@ -57,7 +58,6 @@ from yasin_mcp.tools.registry import (
     TOOL_LIST_PROJECTS,
     RegistryToolset,
 )
-from yasin_mcp.capabilities.surface import surface_metadata
 from yasin_mcp.version import CAPABILITY_SURFACE_VERSION, __version__
 
 SERVER_NAME: Final[str] = "Yasin-MCP"
