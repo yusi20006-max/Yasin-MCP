@@ -26,10 +26,12 @@ Yasin-Operations integration.** As of this writing:
   `yasin_operations_diagnostics`), registered only when the
   `yasin-operations` executable is available. See
   `docs/OPERATIONS_INTEGRATION.md` for the full architecture.
-- See `docs/AUDIT_P0_A1.md` for the current evidence-based audit
-  of exactly what is CONFIRMED vs TARGET vs UNRESOLVED across the
-  whole repository, including known gaps (e.g. the CLI entrypoint's
-  test coverage).
+- P0 audits (Issues #35–#37):
+  - `docs/AUDIT_P0_A1.md` — repository, CI, architecture, quality gate
+  - `docs/AUDIT_P0_A2.md` — ecosystem integration boundary
+  - `docs/AUDIT_P0_A3.md` — live MCP stdio runtime and real client
+    compatibility (official `mcp` ClientSession; initialize,
+    list_tools, invalid-tool error, graceful shutdown confirmed)
 
 This section previously stated "Phase 0, Issue #1 only" long after
 that had stopped being true across three merged PRs (#22, #32, #34)
@@ -45,7 +47,8 @@ Yasin-MCP. Direct verification against the `yusi20006-max/YASIN-DOCS`
 repository (both a code search for "Yasin-MCP"/"MCP" and a direct
 check of `PROJECT_REGISTRY.yaml` and `ECOSYSTEM.md`) found **no
 mention of Yasin-MCP anywhere in that repository** as of this issue,
-and this remains true as of the P0 audit above (`docs/AUDIT_P0_A1.md` §9).
+and this remains true as of the P0 audits (`docs/AUDIT_P0_A1.md` §9,
+`docs/AUDIT_P0_A2.md`).
 
 This means the architecture implemented here is derived directly
 from this project's own Issue #1–#10 descriptions (which are
