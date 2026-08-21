@@ -8,6 +8,7 @@ from typing import Any
 
 from yasin_mcp.adapters.project_registry import ProjectRegistryAdapter
 from yasin_mcp.errors.errors import ValidationError
+from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 
 TOOL_LIST_PROJECTS = "yasin_registry_list_projects"
 TOOL_GET_PROJECT = "yasin_registry_get_project"
@@ -20,11 +21,14 @@ class RegistryToolset:
 
     def list_projects(self) -> dict[str, Any]:
         projects = self._adapter.list_projects()
-        return {
+        base = {
             "projects": [p.as_dict() for p in projects],
             "count": len(projects),
             "evidence_status": "confirmed" if projects else "unresolved",
         }
+        return attach_untrusted_envelope(
+            base, source="yasin-docs-registry", text_for_markers="registry-list"
+        )
 
     def get_project(self, name: str) -> dict[str, Any]:
         if not isinstance(name, str):
