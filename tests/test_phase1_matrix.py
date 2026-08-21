@@ -62,10 +62,7 @@ def test_default_runtime_advertises_only_safe_docs_capabilities() -> None:
     runtime = ServerRuntime.create()
     names = [item.name for item in runtime.capability_catalog().capabilities]
     assert names
-    assert all(
-        name.startswith("yasin_docs_") or name.startswith("yasin_github_")
-        for name in names
-    )
+    assert all(name.startswith("yasin_docs_") or name.startswith("yasin_github_") for name in names)
     assert all("exec" not in name and "shell" not in name for name in names)
 
 
