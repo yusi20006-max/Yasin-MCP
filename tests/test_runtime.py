@@ -7,14 +7,17 @@ from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.server.runtime import SERVER_NAME, TRANSPORT_STDIO, ServerRuntime
 from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
 from yasin_mcp.tools.github import GITHUB_TOOL_DEFINITIONS
+from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
 
 
 def test_runtime_registers_docs_tools_by_default() -> None:
     runtime = ServerRuntime.create(ServerConfig())
     assert runtime.server.name == SERVER_NAME
-    expected = {definition.name for definition in DOCS_TOOL_DEFINITIONS} | {
-        definition.name for definition in GITHUB_TOOL_DEFINITIONS
-    }
+    expected = (
+        {definition.name for definition in DOCS_TOOL_DEFINITIONS}
+        | {definition.name for definition in GITHUB_TOOL_DEFINITIONS}
+        | {definition.name for definition in REGISTRY_TOOL_DEFINITIONS}
+    )
     catalog_names = {cap.name for cap in runtime.capability_catalog().capabilities}
     assert expected <= catalog_names
     tools = runtime.server._tool_manager.list_tools()  # type: ignore[attr-defined]
@@ -30,5 +33,7 @@ def test_runtime_accepts_dependency_free_registry() -> None:
     runtime = ServerRuntime.create(registry=registry)
     assert runtime.registry is registry
     assert len(runtime.capability_catalog().capabilities) == (
-        len(DOCS_TOOL_DEFINITIONS) + len(GITHUB_TOOL_DEFINITIONS)
+        len(DOCS_TOOL_DEFINITIONS)
+        + len(GITHUB_TOOL_DEFINITIONS)
+        + len(REGISTRY_TOOL_DEFINITIONS)
     )
