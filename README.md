@@ -32,6 +32,8 @@ Yasin-Operations integration.** As of this writing:
   - `docs/AUDIT_P0_A3.md` — live MCP stdio runtime and real client
     compatibility (official `mcp` ClientSession; initialize,
     list_tools, invalid-tool error, graceful shutdown confirmed)
+- Post-P2 readiness: see `docs/RELEASE_READINESS.md`
+  (**READY_FOR_CONTROLLED_RELEASE**; not Production Ready).
 
 This section previously stated "Phase 0, Issue #1 only" long after
 that had stopped being true across three merged PRs (#22, #32, #34)
@@ -124,3 +126,18 @@ ruff format --check .
 mypy src
 bandit -q -r src
 ```
+
+## Documentation index
+
+| Doc | Purpose |
+|-----|---------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Post-P2 architecture and evidence map |
+| [RUNBOOK.md](docs/RUNBOOK.md) | Install, run, diagnose, failure modes |
+| [RELEASE_READINESS.md](docs/RELEASE_READINESS.md) | Controlled-release assessment |
+| [CLIENT_RUNTIME.md](docs/CLIENT_RUNTIME.md) | Stdio client config and smoke checklist |
+| [CAPABILITY_SURFACE.md](docs/CAPABILITY_SURFACE.md) | Surface version semantics |
+| [LIVE_MCP_HARNESS.md](docs/LIVE_MCP_HARNESS.md) | Live runtime evidence class |
+| [OPERATIONS_INTEGRATION.md](docs/OPERATIONS_INTEGRATION.md) | Optional Operations gateway |
+| [REGISTRY_INTEGRATION.md](docs/REGISTRY_INTEGRATION.md) | Registry consumer contract |
+| [RELIABILITY.md](docs/RELIABILITY.md) | Retry policy |
+| [OBSERVABILITY.md](docs/OBSERVABILITY.md) | Correlation and redaction |
