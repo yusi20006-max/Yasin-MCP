@@ -11,6 +11,7 @@ from typing import Any
 
 from yasin_mcp.adapters.github import GitHubAdapter
 from yasin_mcp.errors.errors import ValidationError
+from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 
 TOOL_GET_REPO = "yasin_github_get_repository"
 TOOL_LIST_ISSUES = "yasin_github_list_issues"
@@ -96,14 +97,23 @@ class GitHubToolset:
         if not isinstance(owner, str) or not isinstance(repository, str):
             raise ValidationError("owner and repository must be strings")
         runs = self._adapter.list_workflow_runs(owner, repository, limit=limit)
-        return {
+        wrapped = [
+            attach_untrusted_envelope(
+                dict(run),
+                source="github",
+                text_for_markers=str(run.get("name") or run.get("html_url") or ""),
+            )
+            for run in runs
+        ]
+        base = {
             "owner": owner,
             "repository": repository,
-            "workflow_runs": list(runs),
-            "count": len(runs),
+            "workflow_runs": wrapped,
+            "count": len(wrapped),
             "evidence_status": "confirmed",
             "provenance": {"source": "github"},
         }
+        return attach_untrusted_envelope(base, source="github", text_for_markers=repository)
 
     def list_branches(self, owner: str, repository: str, limit: int = 20) -> dict[str, Any]:
         if not isinstance(owner, str) or not isinstance(repository, str):
