@@ -10,6 +10,7 @@ from mcp.server import MCPServer
 from yasin_mcp.adapters.docs import YasinDocsAdapter
 from yasin_mcp.adapters.github import GitHubAdapter
 from yasin_mcp.adapters.operations import OperationsAdapter
+from yasin_mcp.adapters.project_registry import ProjectRegistryAdapter
 from yasin_mcp.capabilities.docs_registration import register_docs_tools
 from yasin_mcp.capabilities.github_registration import register_github_tools
 from yasin_mcp.capabilities.operations_registration import register_operations_tools
@@ -18,6 +19,7 @@ from yasin_mcp.capabilities.registry import (
     CapabilityRegistry,
     discover_capabilities,
 )
+from yasin_mcp.capabilities.registry_registration import register_registry_tools
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.tools.docs import (
     TOOL_GET_ADR,
@@ -48,6 +50,12 @@ from yasin_mcp.tools.operations import (
     TOOL_LIST_SERVICES,
     TOOL_SERVICE_STATUS,
     OperationsToolset,
+)
+from yasin_mcp.tools.registry import (
+    TOOL_GET_PROJECT,
+    TOOL_LIST_DEPS,
+    TOOL_LIST_PROJECTS,
+    RegistryToolset,
 )
 from yasin_mcp.version import __version__
 
@@ -127,6 +135,14 @@ class ServerRuntime:
         )
         server.add_tool(gh_tools.list_branches, name=TOOL_LIST_BRANCHES, structured_output=True)
         server.add_tool(gh_tools.list_releases, name=TOOL_LIST_RELEASES, structured_output=True)
+
+        # Project registry tools (sourced from YASIN-DOCS registry file).
+        register_registry_tools(resolved_registry)
+        reg = ProjectRegistryAdapter(docs)
+        reg_tools = RegistryToolset(reg)
+        server.add_tool(reg_tools.list_projects, name=TOOL_LIST_PROJECTS, structured_output=True)
+        server.add_tool(reg_tools.get_project, name=TOOL_GET_PROJECT, structured_output=True)
+        server.add_tool(reg_tools.list_dependencies, name=TOOL_LIST_DEPS, structured_output=True)
 
         # Operations tools only when the gateway executable is available.
         operations_registered = register_operations_tools(resolved_registry, ops_adapter)
