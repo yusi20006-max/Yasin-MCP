@@ -199,7 +199,9 @@ class YasinDocsAdapter:
         matches = self.search_docs(normalized)
         for result in matches:
             path = result.document.path.lower()
-            if "architecture" in path and normalized.casefold() in result.document.content.casefold():
+            if "architecture" not in path:
+                continue
+            if normalized.casefold() in result.document.content.casefold():
                 return result.document
         raise NotFoundError(f"No architecture document was found for project {project!r}")
 
