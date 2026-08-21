@@ -39,9 +39,7 @@ class AgentContextBundle:
             "sources": [s.as_dict() for s in self.sources],
             "inferences": list(self.inferences),
             "unresolved": list(self.unresolved),
-            "evidence_note": (
-                "sources carry evidence_status; inferences are not CONFIRMED facts"
-            ),
+            "evidence_note": ("sources carry evidence_status; inferences are not CONFIRMED facts"),
         }
 
 
