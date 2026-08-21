@@ -54,6 +54,7 @@ live harness above, not a vendor-specific integration package.
 
 ```python
 from yasin_mcp.server.runtime import ServerRuntime
+
 info = ServerRuntime.create().surface_info()
 # capability_surface_version, operations_available, always_on_prefixes, ...
 ```
