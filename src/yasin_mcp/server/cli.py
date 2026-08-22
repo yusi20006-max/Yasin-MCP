@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version
-
 import argparse
+from importlib.metadata import PackageNotFoundError, version
 
 from yasin_mcp.audit.logging_setup import configure_logging
 from yasin_mcp.config.config import load_config
