@@ -40,11 +40,14 @@ def test_version_exits_without_starting_server(monkeypatch, capsys) -> None:
 def test_no_arguments_starts_server(monkeypatch) -> None:
     monkeypatch.setattr(sys, "argv", ["yasin-mcp"])
 
+    class ConfigStub:
+        log_level = "INFO"
+
     class RuntimeStub:
         def run_stdio(self) -> None:
             calls.append("stdio")
 
-    config = object()
+    config = ConfigStub()
     runtime = RuntimeStub()
     calls: list[str] = []
 

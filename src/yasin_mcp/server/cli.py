@@ -9,7 +9,6 @@ from yasin_mcp.audit.logging_setup import configure_logging
 from yasin_mcp.config.config import load_config
 from yasin_mcp.server.runtime import ServerRuntime
 
-
 _PACKAGE_NAME = "yasin-mcp"
 
 
