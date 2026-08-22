@@ -139,47 +139,90 @@ and known limitations.
 
 ## Termux / Android
 
-Yasin-MCP is intended to be runnable on Termux as a normal Python
-package and does not require a desktop-only runtime.
+Yasin-MCP is a pure-Python package plus the `mcp` dependency and does
+not require a desktop-only runtime. However, **native Termux with
+Python 3.14.x is currently not a supported or verified runtime**.
 
-Recommended baseline:
+The limitation is platform/dependency specific, not a general
+Python 3.14 language-version restriction and not a Yasin-MCP CLI
+logic failure.
 
-- Termux with a current Python 3.x package
-- Git
-- A network connection for GitHub/YASIN-DOCS integrations
-- Optional `yasin-operations` executable only when Operations tools
-  are required
+### Native Termux (Python 3.14.x) — unsupported
 
-Basic installation:
+Verified on Android / aarch64 / native Termux / Python 3.14.6 with
+`cryptography==50.0.0` and `mcp==2.0.0`:
+
+```text
+ImportError: dlopen failed: cannot locate symbol "PyLong_Type"
+referenced by .../cryptography/hazmat/bindings/_rust.abi3.so
+```
+
+The failure occurs while importing `mcp` through its `cryptography`
+dependency. Consequently, `yasin-mcp --help` and `yasin-mcp --version`
+cannot start in this environment even though the package itself is
+correctly installed in editable mode.
+
+This is an environment/ABI dynamic-linking limitation in the native
+Termux dependency stack. It must not be worked around by disabling
+TLS/certificate verification, monkey-patching cryptography, forcing
+incompatible native libraries, or replacing the cryptographic
+implementation with an unverified fallback.
+
+### Recommended workaround: Debian via proot-distro
+
+A full Linux userland inside Termux is a candidate workaround because
+its CPython and native-library layout differs from the native Termux
+runtime. Treat this path as verified only after the commands below
+succeed on the target device.
+
+On the Termux host:
 
 ```bash
 pkg update
-pkg install git python
+pkg install proot-distro git
+proot-distro install debian
+proot-distro login debian
+```
 
+Inside the Debian proot:
+
+```bash
+apt update
+apt install -y python3 python3-venv python3-pip git
 git clone https://github.com/yusi20006-max/Yasin-MCP.git
 cd Yasin-MCP
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-```
-
-Run the MCP server over stdio:
-
-```bash
-yasin-mcp
-```
-
-For a minimal installation without development tooling:
-
-```bash
+pip install --upgrade pip
 pip install -e .
-yasin-mcp
 ```
 
-Termux support is a compatibility target and should be validated on a
-real Android/Termux environment before being treated as a confirmed
-platform-specific release claim.
+Verify the environment before treating it as supported:
+
+```bash
+python -c "import cryptography; print(cryptography.__version__)"
+python -c "from cryptography.hazmat.bindings._rust import exceptions; print('rust OK')"
+python -c "import mcp; print('mcp import OK')"
+python -c "from yasin_mcp.server.cli import main; print('CLI import OK')"
+yasin-mcp --version
+yasin-mcp --help
+```
+
+### Supported runtimes summary
+
+| Environment | Python | Status |
+|-------------|--------|--------|
+| CI / Linux (Ubuntu) | 3.10, 3.11, 3.12 | **Supported** (CI matrix) |
+| General CPython on Linux / macOS / Windows | >=3.10 | Supported subject to dependency wheels |
+| Native Termux (Python 3.14.x aarch64) | 3.14.x | **Unsupported / unverified** — cryptography native ABI failure |
+| Termux + proot-distro Debian | typically distro-provided Python | **Candidate workaround** — verify on device |
+
+Project `requires-python` remains `>=3.10`. The Termux limitation is
+platform/ABI-specific and does not change the declared Python version
+range for normal supported environments.
+
+See also [`docs/RUNBOOK.md`](docs/RUNBOOK.md) for installation and
+failure-mode notes.
 
 ## Development
 
