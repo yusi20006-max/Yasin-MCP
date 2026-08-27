@@ -12,6 +12,7 @@ from typing import Any
 
 from yasin_mcp.capabilities.descriptor import CapabilityDescriptor
 from yasin_mcp.errors.errors import ValidationError
+from yasin_mcp.governance.types import RiskLevel
 from yasin_mcp.version import EvidenceStatus
 
 CURRENT_PROTOCOL_VERSION = "2026-07-28"
@@ -68,6 +69,7 @@ class CapabilityContract:
     version: str = CONTRACT_VERSION
     input_schema: dict[str, Any] = field(default_factory=dict)
     evidence_status: EvidenceStatus = EvidenceStatus.CONFIRMED
+    risk: RiskLevel = RiskLevel.READ_ONLY
 
     def __post_init__(self) -> None:
         if not self.version.strip():
@@ -93,4 +95,5 @@ class CapabilityContract:
             "input_schema": dict(self.input_schema),
             "read_only": not self.descriptor.is_mutating,
             "evidence_status": self.evidence_status.value,
+            "risk": self.risk.value,
         }
