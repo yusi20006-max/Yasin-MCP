@@ -189,6 +189,7 @@ class ServerRuntime:
         )
 
     def surface_info(self) -> dict[str, object]:
+        from yasin_mcp.auth import authentication_boundary_summary
         from yasin_mcp.contracts.integration_context import integration_contract_summary
 
         meta = surface_metadata()
@@ -196,6 +197,8 @@ class ServerRuntime:
         meta["governance"] = "centralized"
         meta["runtime_version"] = __version__
         meta["integration"] = integration_contract_summary()
+        meta["authentication"] = authentication_boundary_summary()
+        meta["require_authentication"] = self.config.require_authentication
         return meta
 
     def capability_catalog(self) -> CapabilityCatalog:
