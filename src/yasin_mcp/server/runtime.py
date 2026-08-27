@@ -132,6 +132,7 @@ class ServerRuntime:
             risk_catalog,
             policy=policy or DefaultConservativePolicy(),
             auditor=auditor or LoggingAuditRecorder(),
+            security_config=resolved_config,
         )
         for name in risk_catalog.known_names():
             if name not in gate.catalog:

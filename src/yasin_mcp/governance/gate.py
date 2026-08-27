@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import inspect
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from yasin_mcp.errors.errors import PolicyDeniedError, ValidationError
 from yasin_mcp.governance.audit import (
@@ -23,6 +23,9 @@ from yasin_mcp.governance.types import (
     ToolIdentity,
 )
 
+if TYPE_CHECKING:
+    from yasin_mcp.config.config import ServerConfig
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 
@@ -38,17 +41,27 @@ def _decision_message(decision: GovernanceDecision, tool_name: str) -> str:
 
 
 class GovernanceGate:
-    """Single enforcement point: evaluate policy, audit, then optionally execute."""
+    """Single enforcement point: optional auth, then policy, audit, execute.
+
+    Ordering (Stage 8):
+        Authentication resolution (when ServerConfig attached)
+            → Identity binding
+            → Policy evaluation
+            → ALLOW / DENY / APPROVAL_REQUIRED
+            → Tool execution only on ALLOW
+    """
 
     def __init__(
         self,
         catalog: ToolRiskCatalog,
         policy: GovernancePolicy | None = None,
         auditor: AuditRecorder | None = None,
+        security_config: ServerConfig | None = None,
     ) -> None:
         self._catalog = catalog
         self._policy: GovernancePolicy = policy or DefaultConservativePolicy()
         self._auditor: AuditRecorder = auditor or LoggingAuditRecorder()
+        self._security_config = security_config
 
     @property
     def catalog(self) -> ToolRiskCatalog:
@@ -57,6 +70,10 @@ class GovernanceGate:
     @property
     def policy(self) -> GovernancePolicy:
         return self._policy
+
+    @property
+    def security_config(self) -> ServerConfig | None:
+        return self._security_config
 
     def resolve_tool(self, name: str) -> ToolIdentity:
         return self._catalog.resolve(name)
@@ -83,8 +100,24 @@ class GovernanceGate:
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         context: GovernanceContext | None = None,
+        presented_secret: str | None = None,
     ) -> Any:
         kwargs = dict(kwargs or {})
+
+        from yasin_mcp.auth.enforcement import extract_presented_secret, resolve_execution_auth
+
+        kwargs, extracted_secret = extract_presented_secret(kwargs)
+        if presented_secret is None:
+            presented_secret = extracted_secret
+
+        bound = resolve_execution_auth(
+            self._security_config,
+            context=context,
+            presented_secret=presented_secret,
+        )
+        if bound is not None:
+            context = bound.governance
+
         tool, decision = self.evaluate(tool_name, context)
         safe_context = sanitize_audit_payload(context.as_dict() if context else {})
         if not isinstance(safe_context, dict):
@@ -125,8 +158,6 @@ class GovernanceGate:
         try:
             result = fn(*args, **kwargs)
         except Exception as exc:
-            # Issue #82: never put exception *values* into audit — they may
-            # contain secrets. Type name only is enough for diagnosis.
             self._auditor.record(
                 AuditEvent(
                     event_type=AuditEventType.EXECUTION_FAILURE,
