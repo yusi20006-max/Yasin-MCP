@@ -53,13 +53,20 @@ class GovernanceContext:
 
     Fields are deliberately product-agnostic: do not hard-code Hermes,
     Yasin-Agent, YasinHub, or Control Plane names into policy logic.
+
+    All caller-supplied values are ASSERTED (unauthenticated) over stdio
+    unless a future authenticated transport marks them TRUSTED. See
+    ``yasin_mcp.contracts.integration_context`` and docs/STAGE6_INTEGRATION.md.
     """
 
     client_id: str | None = None
     agent_id: str | None = None
     project_id: str | None = None
     workspace_id: str | None = None
+    task_id: str | None = None
+    session_id: str | None = None
     request_id: str | None = None
+    correlation_id: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -72,8 +79,14 @@ class GovernanceContext:
             payload["project_id"] = self.project_id
         if self.workspace_id is not None:
             payload["workspace_id"] = self.workspace_id
+        if self.task_id is not None:
+            payload["task_id"] = self.task_id
+        if self.session_id is not None:
+            payload["session_id"] = self.session_id
         if self.request_id is not None:
             payload["request_id"] = self.request_id
+        if self.correlation_id is not None:
+            payload["correlation_id"] = self.correlation_id
         if self.extra:
             payload["extra"] = dict(self.extra)
         return payload

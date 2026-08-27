@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Stage 6 integration context contract, trust classification, and isolation tests (Issue #87).
+- `docs/STAGE6_INTEGRATION.md` ecosystem integration boundary documentation.
+
 - Stage 5 production-readiness tests: capability surface integrity, repeated MCP sessions, failure recovery, CLI config exit path (Issue #84).
 - `docs/STAGE5_PRODUCTION_READINESS.md` assessment.
 
