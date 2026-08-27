@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.errors.errors import PolicyDeniedError, ValidationError
@@ -101,7 +102,7 @@ def test_policy_exception_is_fail_closed() -> None:
 def test_invalid_policy_decision_is_fail_closed() -> None:
     class BadDecisionPolicy:
         def evaluate(self, tool: ToolIdentity, context: Any = None) -> str:
-            return "allow"  # not a GovernanceDecision
+            return "allow"
 
     gate, _, calls = _counting_gate(policy=BadDecisionPolicy())
     with pytest.raises(ValidationError):
@@ -129,7 +130,6 @@ def test_empty_tool_name_rejected() -> None:
 
 
 def test_trusted_agent_context_does_not_bypass_deny() -> None:
-    """Context alone must not elevate DENY → ALLOW under default policy."""
     gate, _, calls = _counting_gate(
         {"blocked": RiskLevel.HIGH_RISK},
         policy=DefaultConservativePolicy(),
@@ -157,7 +157,6 @@ def test_context_isolation_between_requests() -> None:
         e.context.get("project_id") for e in rec.events if e.event_type is AuditEventType.REQUEST
     ]
     assert projects == ["project-A", "project-B"]
-    # No cross-contamination of request ids on later events
     req_ids = [
         e.context.get("request_id") for e in rec.events if e.event_type is AuditEventType.DECISION
     ]
@@ -193,7 +192,6 @@ def test_secret_redaction_nested_and_key_variants() -> None:
 
 
 def test_execution_failure_audit_omits_exception_value() -> None:
-    """Issue #82: exception *values* must not appear in audit messages."""
     gate, rec, _ = _counting_gate()
 
     def boom() -> None:
@@ -220,10 +218,8 @@ def test_runtime_production_tools_have_risk_and_are_governed() -> None:
         identity = rt.governance.resolve_tool(name)
         assert identity.known is True
         assert isinstance(identity.risk, RiskLevel)
-    # Registry inspection alone is not an execution path
     catalog = rt.capability_catalog()
     assert catalog is not None
-    # DENY via injected policy still blocks through runtime gate
     rt_deny = ServerRuntime.create(
         ServerConfig(),
         policy=StaticDecisionPolicy({TOOL_LIST_DOCS: GovernanceDecision.DENY}),
@@ -236,19 +232,16 @@ def test_runtime_production_tools_have_risk_and_are_governed() -> None:
 
 
 def test_operations_registration_path_is_governed_when_present() -> None:
-    """Static check: when operations tools register, they go through add_governed."""
     src = open("src/yasin_mcp/server/runtime.py", encoding="utf-8").read()
     assert "add_governed(toolset.list_services" in src
     assert "add_governed(toolset.service_status" in src
     assert "add_governed(toolset.health" in src
     assert "add_governed(toolset.diagnostics" in src
-    # Only production registration site for MCP tools
     assert src.count("server.add_tool") == 1
     assert "gate.wrap_tool" in src
 
 
 def test_no_global_mutable_authorization_state() -> None:
-    """Two gates with different policies must not share authorization state."""
     cat = ToolRiskCatalog({"t": RiskLevel.READ_ONLY})
     g1 = GovernanceGate(
         cat,
@@ -270,7 +263,7 @@ def test_no_global_mutable_authorization_state() -> None:
 def test_wrap_tool_is_the_mcp_enforcement_boundary() -> None:
     gate, _, calls = _counting_gate({"blocked": RiskLevel.HIGH_RISK})
     wrapped = gate.wrap_tool("blocked", lambda: calls.append("x") or "no")
-    with pytest.raises(PolicyDeniedError):
+    with pytest.raises(ToolError):
         wrapped()
     assert calls == []
     gate2, _, calls2 = _counting_gate()
