@@ -53,6 +53,8 @@ Authentication **never** executes tools and **never** bypasses GovernanceGate.
 | `YASIN_MCP_AUTH_SUBJECT` | Subject ID on successful shared-secret auth |
 | `YASIN_MCP_REQUIRE_AUTH` | If true, requires successful authentication |
 
+Invalid `require_authentication` without token → configuration error (fail closed).
+
 ## Explicit non-goals
 
 Yasin-Agent/Hub/Control Plane integration, approval UI, remote TLS client auth, custom cryptography, Stage 8.
