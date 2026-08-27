@@ -154,8 +154,7 @@ class GovernanceGate:
         gate = self
         if inspect.iscoroutinefunction(fn):
             raise TypeError(
-                f"Async tool functions are not supported by GovernanceGate "
-                f"(tool {tool_name!r})"
+                f"Async tool functions are not supported by GovernanceGate (tool {tool_name!r})"
             )
 
         @functools.wraps(fn)
