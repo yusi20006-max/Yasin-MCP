@@ -1,6 +1,11 @@
-"""Authentication and trusted-identity boundary (Stage 7.1 / Stage 8)."""
+"""Authentication and trusted-identity boundary (Stages 7.1–9)."""
 
 from yasin_mcp.auth.binding import BoundRequestContext, bind_context
+from yasin_mcp.auth.credential import (
+    PresentedCredential,
+    credential_transport_summary,
+    extract_credential,
+)
 from yasin_mcp.auth.enforcement import extract_presented_secret, resolve_execution_auth
 from yasin_mcp.auth.pipeline import resolve_authentication
 from yasin_mcp.auth.request_state import AUTH_TOKEN_KWARG, auth_request_scope
@@ -24,6 +29,7 @@ def authentication_boundary_summary() -> dict[str, object]:
         "caller_cannot_set_trusted": True,
         "enforcement_on_tools_call": True,
         "auth_before_governance": True,
+        "credential_transport": credential_transport_summary(),
         "evidence_status": "confirmed",
     }
 
@@ -35,11 +41,14 @@ __all__ = [
     "AuthStatus",
     "AuthenticatedIdentity",
     "BoundRequestContext",
+    "PresentedCredential",
     "authenticate_shared_secret",
     "authenticate_stdio_peer",
     "authentication_boundary_summary",
     "auth_request_scope",
     "bind_context",
+    "credential_transport_summary",
+    "extract_credential",
     "extract_presented_secret",
     "resolve_authentication",
     "resolve_execution_auth",
