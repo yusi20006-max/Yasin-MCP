@@ -8,6 +8,7 @@ are returned as structured MCP errors at call time, not registration time.
 from __future__ import annotations
 
 from yasin_mcp.capabilities.registry import CapabilityRegistry, descriptor_for
+from yasin_mcp.governance.types import RiskLevel
 from yasin_mcp.protocol.contracts import CapabilityContract, CapabilityScope
 from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
 
@@ -25,6 +26,7 @@ def register_docs_tools(registry: CapabilityRegistry) -> int:
                 ),
                 scope=CapabilityScope.TOOL,
                 input_schema=dict(definition.input_schema),
+                risk=RiskLevel.READ_ONLY,
             )
         )
     return len(DOCS_TOOL_DEFINITIONS)

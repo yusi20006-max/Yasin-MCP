@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from yasin_mcp.capabilities.registry import CapabilityRegistry, descriptor_for
+from yasin_mcp.governance.types import RiskLevel
 from yasin_mcp.protocol.contracts import CapabilityContract, CapabilityScope
 from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
 
@@ -19,6 +20,7 @@ def register_registry_tools(registry: CapabilityRegistry) -> int:
                 ),
                 scope=CapabilityScope.TOOL,
                 input_schema=dict(definition.input_schema),
+                risk=RiskLevel.READ_ONLY,
             )
         )
     return len(REGISTRY_TOOL_DEFINITIONS)

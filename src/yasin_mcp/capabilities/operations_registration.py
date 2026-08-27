@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from yasin_mcp.adapters.operations import OperationsAdapter
 from yasin_mcp.capabilities.registry import CapabilityRegistry, descriptor_for
+from yasin_mcp.governance.types import RiskLevel
 from yasin_mcp.protocol.contracts import CapabilityContract, CapabilityScope
 from yasin_mcp.tools.operations import OPERATIONS_TOOL_DEFINITIONS
 
@@ -36,6 +37,7 @@ def register_operations_tools(registry: CapabilityRegistry, adapter: OperationsA
                 ),
                 scope=CapabilityScope.TOOL,
                 input_schema=dict(definition.input_schema),
+                risk=RiskLevel.READ_ONLY,
             )
         )
     return True
