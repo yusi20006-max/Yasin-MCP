@@ -189,9 +189,13 @@ class ServerRuntime:
         )
 
     def surface_info(self) -> dict[str, object]:
+        from yasin_mcp.contracts.integration_context import integration_contract_summary
+
         meta = surface_metadata()
         meta["operations_available"] = self.operations_available
         meta["governance"] = "centralized"
+        meta["runtime_version"] = __version__
+        meta["integration"] = integration_contract_summary()
         return meta
 
     def capability_catalog(self) -> CapabilityCatalog:
