@@ -34,6 +34,7 @@ _DEFAULT_TIMEOUT = 30
 _MAX_TIMEOUT = 120
 _DEFAULT_MAX_CONCURRENCY = 32
 _MAX_CONCURRENCY = 256
+_MAX_AUTH_SUBJECT_LEN = 128
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,9 @@ class ServerConfig:
     request_timeout_seconds: int = _DEFAULT_TIMEOUT
     max_concurrent_requests: int = _DEFAULT_MAX_CONCURRENCY
     github_token: SecretStr | None = None
+    auth_token: SecretStr | None = None
+    auth_subject_id: str = "local-operator"
+    require_authentication: bool = False
 
     def __post_init__(self) -> None:
         if self.log_level not in _VALID_LOG_LEVELS:
@@ -57,6 +61,19 @@ class ServerConfig:
         if not 1 <= self.max_concurrent_requests <= _MAX_CONCURRENCY:
             raise InvalidConfigurationError(
                 f"max_concurrent_requests must be between 1 and {_MAX_CONCURRENCY}"
+            )
+        subject = self.auth_subject_id.strip()
+        if not subject or len(subject) > _MAX_AUTH_SUBJECT_LEN:
+            raise InvalidConfigurationError(
+                "auth_subject_id must be a non-empty string up to "
+                f"{_MAX_AUTH_SUBJECT_LEN} characters"
+            )
+        object.__setattr__(self, "auth_subject_id", subject)
+        if self.require_authentication and (
+            self.auth_token is None or not self.auth_token.get_secret_value()
+        ):
+            raise InvalidConfigurationError(
+                "require_authentication=true requires YASIN_MCP_AUTH_TOKEN to be set"
             )
 
 
@@ -81,6 +98,20 @@ def _env_secret(name: str) -> SecretStr | None:
     return SecretStr(raw)
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise InvalidConfigurationError(
+        f"Environment variable {name} must be a boolean (true/false)"
+    )
+
+
 def load_config() -> ServerConfig:
     """Build validated configuration from environment variables."""
     return ServerConfig(
@@ -90,4 +121,7 @@ def load_config() -> ServerConfig:
             "YASIN_MCP_MAX_CONCURRENT_REQUESTS", _DEFAULT_MAX_CONCURRENCY
         ),
         github_token=_env_secret("YASIN_MCP_GITHUB_TOKEN"),
+        auth_token=_env_secret("YASIN_MCP_AUTH_TOKEN"),
+        auth_subject_id=_env_str("YASIN_MCP_AUTH_SUBJECT", "local-operator"),
+        require_authentication=_env_bool("YASIN_MCP_REQUIRE_AUTH", False),
     )
