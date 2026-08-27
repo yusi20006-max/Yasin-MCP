@@ -5,6 +5,7 @@ from __future__ import annotations
 import concurrent.futures
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
 from yasin_mcp.auth import AUTH_TOKEN_KWARG, auth_request_scope
 from yasin_mcp.config.config import SecretStr, ServerConfig
@@ -190,7 +191,7 @@ def test_wrap_tool_enforces_auth() -> None:
     gate = _gate()
     calls: list[str] = []
     wrapped = gate.wrap_tool("safe", lambda: calls.append("x") or 1)
-    with pytest.raises(UnauthenticatedError):
+    with pytest.raises(ToolError):
         wrapped()
     assert calls == []
     assert wrapped(**{AUTH_TOKEN_KWARG: "TEST_STAGE8_SECRET"}) == 1

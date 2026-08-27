@@ -43,12 +43,14 @@ def _decision_message(decision: GovernanceDecision, tool_name: str) -> str:
 class GovernanceGate:
     """Single enforcement point: optional auth, then policy, audit, execute.
 
-    Ordering (Stage 8):
+    Ordering (Stages 8–9):
         Authentication resolution (when ServerConfig attached)
             → Identity binding
             → Policy evaluation
             → ALLOW / DENY / APPROVAL_REQUIRED
             → Tool execution only on ALLOW
+
+    MCP-facing wrap_tool maps McpError → SDK ToolError (structured JSON).
     """
 
     def __init__(
@@ -192,6 +194,13 @@ class GovernanceGate:
 
         @functools.wraps(fn)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            return gate.execute(tool_name, fn, args=args, kwargs=kwargs)
+            from yasin_mcp.errors.client_contract import raise_as_mcp_tool_error
+            from yasin_mcp.errors.errors import McpError
+
+            try:
+                return gate.execute(tool_name, fn, args=args, kwargs=kwargs)
+            except McpError as exc:
+                raise_as_mcp_tool_error(exc)
+                raise  # pragma: no cover
 
         return sync_wrapper  # type: ignore[return-value]
