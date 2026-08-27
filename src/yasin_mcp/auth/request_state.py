@@ -12,9 +12,7 @@ from contextvars import ContextVar
 
 from yasin_mcp.contracts.integration_context import IntegrationContext
 
-_presented_secret: ContextVar[str | None] = ContextVar(
-    "yasin_mcp_presented_secret", default=None
-)
+_presented_secret: ContextVar[str | None] = ContextVar("yasin_mcp_presented_secret", default=None)
 _asserted_context: ContextVar[IntegrationContext | None] = ContextVar(
     "yasin_mcp_asserted_context", default=None
 )
