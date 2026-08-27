@@ -1,3 +1,5 @@
+> **Stage 5 update (Issue #84):** See [`STAGE5_PRODUCTION_READINESS.md`](STAGE5_PRODUCTION_READINESS.md) for the post-governance production-readiness assessment. This P3 document remains the historical controlled-release baseline.
+
 # Release Readiness Assessment (P3 / Issue #53)
 
 **Assessed against:** post-P2 main + residual untrusted-path fix.
@@ -53,10 +55,11 @@ Not PRODUCTION_READY. Not NOT_READY.
 ## Recommended controlled-release conditions
 
 1. Consumers use **standard MCP stdio** only; treat Hermes/Agent wiring as separate validation in those repos.
-2. Treat GitHub/docs network failures as operational (token, rate limit), not as server crashes.
-3. Do not enable mutation or shell capabilities without a new phase and threat model.
-4. Bump `CAPABILITY_SURFACE_VERSION` on any always-on tool schema change.
+2. Do not require always-on live GitHub/Docs credentials in default CI.
+3. Treat `operations_available=false` as a normal deployment mode when the gateway is absent.
+4. Prefer evidence classes (`CONFIRMED` / `TARGET` / `PROPOSED` / `UNRESOLVED`) over narrative confidence.
 
-## Final statement
+## Stage 5 pointer
 
-Yasin-MCP is **READY_FOR_CONTROLLED_RELEASE** as a read-only MCP access layer with evidenced generic MCP runtime behavior and explicit gaps for vendor-specific agents and optional live upstream CI.
+Post-governance (Stages 3–4) production readiness is documented in
+[`STAGE5_PRODUCTION_READINESS.md`](STAGE5_PRODUCTION_READINESS.md).
