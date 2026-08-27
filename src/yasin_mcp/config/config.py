@@ -107,9 +107,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    raise InvalidConfigurationError(
-        f"Environment variable {name} must be a boolean (true/false)"
-    )
+    raise InvalidConfigurationError(f"Environment variable {name} must be a boolean (true/false)")
 
 
 def load_config() -> ServerConfig:
