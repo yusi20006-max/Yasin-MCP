@@ -1,16 +1,13 @@
-"""Stage 8 — mandatory authentication before governance execution."""
+"""Stage 8/9 — mandatory authentication before governance execution."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from yasin_mcp.auth.binding import BoundRequestContext
+from yasin_mcp.auth.credential import extract_credential
 from yasin_mcp.auth.pipeline import resolve_authentication
-from yasin_mcp.auth.request_state import (
-    AUTH_TOKEN_KWARG,
-    get_asserted_context,
-    get_presented_secret,
-)
+from yasin_mcp.auth.request_state import get_asserted_context, get_presented_secret
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.contracts.integration_context import IntegrationContext
 from yasin_mcp.governance.types import GovernanceContext
@@ -18,13 +15,8 @@ from yasin_mcp.governance.types import GovernanceContext
 
 def extract_presented_secret(kwargs: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
     """Remove reserved auth kwarg from tool kwargs; never leave it for the tool."""
-    cleaned = dict(kwargs)
-    presented = cleaned.pop(AUTH_TOKEN_KWARG, None)
-    if presented is not None and not isinstance(presented, str):
-        presented = str(presented)
-    if presented is None:
-        presented = get_presented_secret()
-    return cleaned, presented
+    cleaned, presented = extract_credential(kwargs)
+    return cleaned, presented.value
 
 
 def resolve_execution_auth(
@@ -34,12 +26,7 @@ def resolve_execution_auth(
     presented_secret: str | None = None,
     asserted: IntegrationContext | None = None,
 ) -> BoundRequestContext | None:
-    """Resolve auth when a security config is attached.
-
-    Returns None when no security config is configured (tests constructing
-    GovernanceGate without ServerConfig). When config is present, always
-    runs the Stage 7.1 pipeline (compatibility mode or require_auth).
-    """
+    """Resolve auth when a security config is attached."""
     if config is None:
         return None
 
