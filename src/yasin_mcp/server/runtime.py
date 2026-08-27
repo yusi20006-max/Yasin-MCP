@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 from mcp.server import MCPServer
 
@@ -22,6 +23,11 @@ from yasin_mcp.capabilities.registry import (
 from yasin_mcp.capabilities.registry_registration import register_registry_tools
 from yasin_mcp.capabilities.surface import surface_metadata
 from yasin_mcp.config.config import ServerConfig
+from yasin_mcp.governance.audit import AuditRecorder, LoggingAuditRecorder
+from yasin_mcp.governance.catalog import ToolRiskCatalog
+from yasin_mcp.governance.gate import GovernanceGate
+from yasin_mcp.governance.policy import DefaultConservativePolicy, GovernancePolicy
+from yasin_mcp.governance.types import RiskLevel
 from yasin_mcp.tools.docs import (
     TOOL_GET_ADR,
     TOOL_GET_DOC,
@@ -64,13 +70,24 @@ SERVER_NAME: Final[str] = "Yasin-MCP"
 TRANSPORT_STDIO: Final[Literal["stdio"]] = "stdio"
 
 
+def _catalog_from_registry(registry: CapabilityRegistry) -> ToolRiskCatalog:
+    catalog = ToolRiskCatalog()
+    for contract in registry.all():
+        risk = getattr(contract, "risk", RiskLevel.READ_ONLY)
+        if not isinstance(risk, RiskLevel):
+            risk = RiskLevel.READ_ONLY
+        catalog.register(contract.name, risk)
+    return catalog
+
+
 @dataclass(frozen=True)
 class ServerRuntime:
-    """Owns server construction, capability registration, and transport lifecycle."""
+    """Owns server construction, capability registration, governance, and transport."""
 
     config: ServerConfig
     server: MCPServer[object]
     registry: CapabilityRegistry
+    governance: GovernanceGate
     operations_available: bool = False
 
     @classmethod
@@ -81,8 +98,11 @@ class ServerRuntime:
         operations_adapter: OperationsAdapter | None = None,
         docs_adapter: YasinDocsAdapter | None = None,
         github_adapter: GitHubAdapter | None = None,
+        policy: GovernancePolicy | None = None,
+        auditor: AuditRecorder | None = None,
+        governance: GovernanceGate | None = None,
     ) -> ServerRuntime:
-        """Construct the MCP server and register safe read-only tools."""
+        """Construct the MCP server, register tools, and wrap them with governance."""
         resolved_config = config if config is not None else ServerConfig()
         resolved_registry = registry if registry is not None else CapabilityRegistry()
         ops_adapter = operations_adapter if operations_adapter is not None else OperationsAdapter()
@@ -102,25 +122,33 @@ class ServerRuntime:
             version=__version__,
         )
 
-        # YASIN-DOCS tools are always registered (public GitHub contract).
         register_docs_tools(resolved_registry)
-        docs_tools = DocsToolset(docs)
-        server.add_tool(docs_tools.list_documents, name=TOOL_LIST_DOCS, structured_output=True)
-        server.add_tool(docs_tools.get_document, name=TOOL_GET_DOC, structured_output=True)
-        server.add_tool(docs_tools.search, name=TOOL_SEARCH_DOCS, structured_output=True)
-        server.add_tool(docs_tools.list_adrs, name=TOOL_LIST_ADRS, structured_output=True)
-        server.add_tool(docs_tools.get_adr, name=TOOL_GET_ADR, structured_output=True)
-        server.add_tool(
-            docs_tools.list_architecture, name=TOOL_LIST_ARCHITECTURE, structured_output=True
-        )
-        server.add_tool(
-            docs_tools.get_project_architecture,
-            name=TOOL_GET_PROJECT_ARCHITECTURE,
-            structured_output=True,
-        )
-
-        # GitHub tools are always registered (public API; optional token).
         register_github_tools(resolved_registry)
+        register_registry_tools(resolved_registry)
+        operations_registered = register_operations_tools(resolved_registry, ops_adapter)
+
+        risk_catalog = _catalog_from_registry(resolved_registry)
+        gate = governance or GovernanceGate(
+            risk_catalog,
+            policy=policy or DefaultConservativePolicy(),
+            auditor=auditor or LoggingAuditRecorder(),
+        )
+        for name in risk_catalog.known_names():
+            if name not in gate.catalog:
+                gate.catalog.register(name, risk_catalog.resolve(name).risk)
+
+        def add_governed(fn: Callable[..., Any], name: str) -> None:
+            server.add_tool(gate.wrap_tool(name, fn), name=name, structured_output=True)
+
+        docs_tools = DocsToolset(docs)
+        add_governed(docs_tools.list_documents, TOOL_LIST_DOCS)
+        add_governed(docs_tools.get_document, TOOL_GET_DOC)
+        add_governed(docs_tools.search, TOOL_SEARCH_DOCS)
+        add_governed(docs_tools.list_adrs, TOOL_LIST_ADRS)
+        add_governed(docs_tools.get_adr, TOOL_GET_ADR)
+        add_governed(docs_tools.list_architecture, TOOL_LIST_ARCHITECTURE)
+        add_governed(docs_tools.get_project_architecture, TOOL_GET_PROJECT_ARCHITECTURE)
+
         gh = github_adapter
         if gh is None:
             gh = GitHubAdapter(
@@ -128,60 +156,46 @@ class ServerRuntime:
                 timeout_seconds=resolved_config.request_timeout_seconds,
             )
         gh_tools = GitHubToolset(gh)
-        server.add_tool(gh_tools.get_repository, name=TOOL_GET_REPO, structured_output=True)
-        server.add_tool(gh_tools.list_issues, name=TOOL_LIST_ISSUES, structured_output=True)
-        server.add_tool(gh_tools.get_issue, name=TOOL_GET_ISSUE, structured_output=True)
-        server.add_tool(gh_tools.list_pull_requests, name=TOOL_LIST_PRS, structured_output=True)
-        server.add_tool(gh_tools.get_pull_request, name=TOOL_GET_PR, structured_output=True)
-        server.add_tool(gh_tools.list_commits, name=TOOL_LIST_COMMITS, structured_output=True)
-        server.add_tool(gh_tools.get_commit_status, name=TOOL_COMMIT_STATUS, structured_output=True)
-        server.add_tool(
-            gh_tools.list_workflow_runs, name=TOOL_LIST_WORKFLOWS, structured_output=True
-        )
-        server.add_tool(gh_tools.list_branches, name=TOOL_LIST_BRANCHES, structured_output=True)
-        server.add_tool(gh_tools.list_releases, name=TOOL_LIST_RELEASES, structured_output=True)
+        add_governed(gh_tools.get_repository, TOOL_GET_REPO)
+        add_governed(gh_tools.list_issues, TOOL_LIST_ISSUES)
+        add_governed(gh_tools.get_issue, TOOL_GET_ISSUE)
+        add_governed(gh_tools.list_pull_requests, TOOL_LIST_PRS)
+        add_governed(gh_tools.get_pull_request, TOOL_GET_PR)
+        add_governed(gh_tools.list_commits, TOOL_LIST_COMMITS)
+        add_governed(gh_tools.get_commit_status, TOOL_COMMIT_STATUS)
+        add_governed(gh_tools.list_workflow_runs, TOOL_LIST_WORKFLOWS)
+        add_governed(gh_tools.list_branches, TOOL_LIST_BRANCHES)
+        add_governed(gh_tools.list_releases, TOOL_LIST_RELEASES)
 
-        # Project registry tools (sourced from YASIN-DOCS registry file).
-        register_registry_tools(resolved_registry)
         reg = ProjectRegistryAdapter(docs)
         reg_tools = RegistryToolset(reg)
-        server.add_tool(reg_tools.list_projects, name=TOOL_LIST_PROJECTS, structured_output=True)
-        server.add_tool(reg_tools.get_project, name=TOOL_GET_PROJECT, structured_output=True)
-        server.add_tool(reg_tools.list_dependencies, name=TOOL_LIST_DEPS, structured_output=True)
+        add_governed(reg_tools.list_projects, TOOL_LIST_PROJECTS)
+        add_governed(reg_tools.get_project, TOOL_GET_PROJECT)
+        add_governed(reg_tools.list_dependencies, TOOL_LIST_DEPS)
 
-        # Operations tools only when the gateway executable is available.
-        operations_registered = register_operations_tools(resolved_registry, ops_adapter)
         if operations_registered:
             toolset = OperationsToolset(ops_adapter)
-            server.add_tool(toolset.list_services, name=TOOL_LIST_SERVICES, structured_output=True)
-            server.add_tool(
-                toolset.service_status, name=TOOL_SERVICE_STATUS, structured_output=True
-            )
-            server.add_tool(toolset.health, name=TOOL_HEALTH, structured_output=True)
-            server.add_tool(toolset.diagnostics, name=TOOL_DIAGNOSTICS, structured_output=True)
+            add_governed(toolset.list_services, TOOL_LIST_SERVICES)
+            add_governed(toolset.service_status, TOOL_SERVICE_STATUS)
+            add_governed(toolset.health, TOOL_HEALTH)
+            add_governed(toolset.diagnostics, TOOL_DIAGNOSTICS)
 
         return cls(
             resolved_config,
             server,
             resolved_registry,
+            gate,
             operations_available=operations_registered,
         )
 
     def surface_info(self) -> dict[str, object]:
-        """Return capability surface compatibility metadata.
-
-        Includes operations_available so clients can discover whether
-        the optional Yasin-Operations gateway was registered without
-        invoking any tool.
-        """
         meta = surface_metadata()
         meta["operations_available"] = self.operations_available
+        meta["governance"] = "centralized"
         return meta
 
     def capability_catalog(self) -> CapabilityCatalog:
-        """Return the current deterministic capability discovery snapshot."""
         return discover_capabilities(self.registry)
 
     def run_stdio(self) -> None:
-        """Run the server over the standard MCP stdio transport."""
         self.server.run(transport=TRANSPORT_STDIO)
