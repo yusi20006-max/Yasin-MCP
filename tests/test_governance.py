@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
 from yasin_mcp.errors.errors import PolicyDeniedError, ValidationError
 from yasin_mcp.governance import (
@@ -97,7 +98,7 @@ def test_deny_approval_unknown_do_not_execute() -> None:
 def test_wrap_tool_enforcement() -> None:
     gate, _ = _gate({"blocked": RiskLevel.HIGH_RISK})
     calls: list[str] = []
-    with pytest.raises(PolicyDeniedError):
+    with pytest.raises(ToolError):
         gate.wrap_tool("blocked", lambda: calls.append("x") or "no")()
     assert calls == []
     gate2, _ = _gate()
