@@ -125,6 +125,8 @@ class GovernanceGate:
         try:
             result = fn(*args, **kwargs)
         except Exception as exc:
+            # Issue #82: never put exception *values* into audit — they may
+            # contain secrets. Type name only is enough for diagnosis.
             self._auditor.record(
                 AuditEvent(
                     event_type=AuditEventType.EXECUTION_FAILURE,
@@ -132,7 +134,7 @@ class GovernanceGate:
                     risk=tool.risk,
                     decision=decision,
                     success=False,
-                    message=f"{type(exc).__name__}: {str(exc)[:300]}",
+                    message=type(exc).__name__,
                     context=safe_context,
                 )
             )

@@ -74,3 +74,32 @@ Payloads sanitized (token/secret/password/authorization/api_key/credential/…).
 
 Yasin-Agent may supply `GovernanceContext`. Approval UI and Control Plane
 orchestration remain outside this repository.
+
+## Stage 4 security guarantees (Issue #82)
+
+Proven by audit and regression tests (`tests/test_governance_security.py`):
+
+| Guarantee | Evidence |
+|-----------|----------|
+| Centralized enforcement | All production `ServerRuntime` tools register via `gate.wrap_tool` only |
+| ALLOW executes once | Invocation count == 1 |
+| DENY / APPROVAL_REQUIRED | Invocation count == 0; no auto-approval |
+| Unknown tools | `known=False` → DENY → no execution |
+| Policy / decision failure | Fail-closed: exception or `ValidationError`; no execution |
+| Invalid metadata | Empty names / non-`RiskLevel` rejected |
+| Context isolation | Per-request `GovernanceContext`; no cross-request leakage |
+| Trusted agent context | Does **not** elevate DENY → ALLOW under default policy |
+| Secret redaction | Sensitive keys redacted in audit payloads |
+| Execution failure audit | Exception **type** only (no exception value / secret payload) |
+| Operations tools | When registered, same `add_governed` path |
+
+### tools/list vs execution
+
+`tools/list` may expose a tool that policy would DENY or mark APPROVAL_REQUIRED.
+Governance controls **execution**, not discovery. Hiding tools is not used as a security mechanism.
+
+### Known limitations
+
+- MCP SDK may map `PolicyDeniedError` to a generic `UnexpectedToolError` on the client.
+  Protocol remains safe (`isError`); decision details stay in server-side audit. Optional future error-bridge.
+- No human approval product, Control Plane, or agent fleet management in this repository.
