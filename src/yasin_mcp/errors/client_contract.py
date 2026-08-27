@@ -7,8 +7,9 @@ messages. Never includes secrets, tracebacks, or exception *values*.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from enum import Enum
-from typing import Any, Final, Mapping
+from typing import Any, Final
 
 from yasin_mcp.errors.errors import (
     ErrorCategory,
@@ -45,7 +46,7 @@ def map_mcp_error(exc: McpError) -> dict[str, Any]:
         "error_contract_version": CLIENT_ERROR_CONTRACT_VERSION,
         "code": code.value,
         "category": exc.category.value,
-        "message": exp.message if False else exc.message,
+        "message": exc.message,
         "details": details,
     }
 
@@ -72,7 +73,7 @@ def _code_for(exc: McpError) -> ClientErrorCode:
 
     if isinstance(exc, ValidationError):
         reason = str(exc.details.get("reason_code", ""))
-        if reason == "context_mismatch" or "conflicts" in exp.message if False else "conflicts" in exc.message:
+        if reason == "context_mismatch" or "conflicts" in exc.message:
             return ClientErrorCode.INVALID_CONTEXT
         return ClientErrorCode.VALIDATION_ERROR
 
