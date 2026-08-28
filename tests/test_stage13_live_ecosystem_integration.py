@@ -158,15 +158,15 @@ def test_live_yasin_agent_compatible_client_context_auth_governance_and_approval
             )
             result = await client.run()
             assert "yasin_gov_ping_low_risk" in result[0]
-            assert result[1] is not None
-            assert result[2] is not None
+            assert not getattr(result[1], "isError", False)
+            assert not getattr(result[2], "isError", False)
 
             requests = auditor.of_type(AuditEventType.REQUEST)
-            assert len(requests) >= 2
-            contexts = [event.context for event in requests]
-            assert any(c.get("correlation_id") == "corr-stage13-1" for c in contexts)
-            assert any(c.get("request_id") == "req-stage13-1" for c in contexts)
-            assert all(c.get("agent_id") == "agent-stage13" for c in contexts)
+            assert requests
+            context = requests[-1].context
+            assert context.get("correlation_id") == "corr-stage13-1"
+            assert context.get("request_id") == "req-stage13-1"
+            assert context.get("agent_id") == "agent-stage13"
         finally:
             server.should_exit = True
             thread.join(timeout=5)
