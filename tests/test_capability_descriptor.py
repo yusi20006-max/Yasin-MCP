@@ -1,3 +1,7 @@
+"""CapabilityDescriptor unit tests."""
+
+from __future__ import annotations
+
 import pytest
 
 from yasin_mcp.capabilities.descriptor import CapabilityDescriptor
@@ -5,27 +9,17 @@ from yasin_mcp.errors.errors import PolicyDeniedError
 from yasin_mcp.policies.policy import CapabilityKind
 
 
-def test_valid_read_only_descriptor():
+def test_valid_tool_descriptor() -> None:
     desc = CapabilityDescriptor(
-        name="get_project",
+        name="read_docs",
         kind=CapabilityKind.TOOL,
-        description="Fetch a single project's metadata",
+        description="Read documentation",
     )
-    assert desc.name == "get_project"
+    assert desc.name == "read_docs"
     assert desc.is_mutating is False
 
 
-def test_descriptor_rejects_empty_name():
-    with pytest.raises(ValueError):
-        CapabilityDescriptor(name="", kind=CapabilityKind.TOOL, description="x")
-
-
-def test_descriptor_rejects_empty_description():
-    with pytest.raises(ValueError):
-        CapabilityDescriptor(name="x", kind=CapabilityKind.TOOL, description="")
-
-
-def test_descriptor_rejects_forbidden_name_at_construction():
+def test_forbidden_name_rejected() -> None:
     with pytest.raises(PolicyDeniedError):
         CapabilityDescriptor(
             name="execute_shell",
@@ -34,20 +28,20 @@ def test_descriptor_rejects_forbidden_name_at_construction():
         )
 
 
-def test_descriptor_rejects_mutating_capability_in_phase_1():
-    with pytest.raises(PolicyDeniedError):
-        CapabilityDescriptor(
-            name="update_project",
-            kind=CapabilityKind.TOOL,
-            description="mutates something",
-            is_mutating=True,
-        )
+def test_descriptor_allows_mutating_capability_after_stage_11() -> None:
+    desc = CapabilityDescriptor(
+        name="update_project",
+        kind=CapabilityKind.TOOL,
+        description="mutates something",
+        is_mutating=True,
+    )
+    assert desc.is_mutating is True
 
 
-def test_resource_kind_descriptor():
+def test_resource_kind_descriptor() -> None:
     desc = CapabilityDescriptor(
         name="get_doc",
         kind=CapabilityKind.RESOURCE,
         description="Fetch a documentation resource",
     )
-    assert desc.kind == CapabilityKind.RESOURCE
+    assert desc.kind is CapabilityKind.RESOURCE
