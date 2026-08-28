@@ -36,6 +36,7 @@ class ClientErrorCode(str, Enum):
     UPSTREAM_FAILURE = "UPSTREAM_FAILURE"
     VALIDATION_ERROR = "VALIDATION_ERROR"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    CONCURRENCY_LIMIT = "CONCURRENCY_LIMIT"
 
 
 def map_mcp_error(exc: McpError) -> dict[str, Any]:
@@ -77,6 +78,9 @@ def _code_for(exc: McpError) -> ClientErrorCode:
             return ClientErrorCode.INVALID_CONTEXT
         return ClientErrorCode.VALIDATION_ERROR
 
+    if exc.category is ErrorCategory.RATE_LIMITED:
+        return ClientErrorCode.CONCURRENCY_LIMIT
+
     mapping = {
         ErrorCategory.UNAUTHENTICATED: ClientErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCategory.UNAUTHORIZED: ClientErrorCode.AUTHORIZATION_DENIED,
@@ -87,7 +91,7 @@ def _code_for(exc: McpError) -> ClientErrorCode:
         ErrorCategory.TIMEOUT: ClientErrorCode.UPSTREAM_FAILURE,
         ErrorCategory.INTERNAL_ERROR: ClientErrorCode.INTERNAL_ERROR,
         ErrorCategory.NOT_FOUND: ClientErrorCode.VALIDATION_ERROR,
-        ErrorCategory.RATE_LIMITED: ClientErrorCode.UPSTREAM_FAILURE,
+        ErrorCategory.RATE_LIMITED: ClientErrorCode.CONCURRENCY_LIMIT,
     }
     return mapping.get(exc.category, ClientErrorCode.INTERNAL_ERROR)
 
