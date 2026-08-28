@@ -47,11 +47,18 @@ def _decision_message(decision: GovernanceDecision, tool_name: str) -> str:
     return f"Governance decision {decision.value} for tool {tool_name!r}"
 
 
-def _extract_approval_token(kwargs: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+def _extract_approval_token(
+    kwargs: dict[str, Any],
+    *,
+    allow_environment_fallback: bool,
+) -> tuple[dict[str, Any], str | None]:
+    """Extract request-presented approval without using a remote process fallback."""
     cleaned = dict(kwargs)
     raw = cleaned.pop(APPROVAL_TOKEN_KWARG, None)
     if raw is not None:
         return cleaned, raw if isinstance(raw, str) else str(raw)
+    if not allow_environment_fallback:
+        return cleaned, None
     env_val = os.environ.get(APPROVAL_PRESENT_ENV)
     return cleaned, env_val if env_val else None
 
@@ -187,7 +194,13 @@ class GovernanceGate:
         if presented_secret is None:
             presented_secret = extracted_secret
 
-        kwargs, extracted_approval = _extract_approval_token(kwargs)
+        allow_environment_fallback = not bool(
+            getattr(self._security_config, "remote_enabled", False)
+        )
+        kwargs, extracted_approval = _extract_approval_token(
+            kwargs,
+            allow_environment_fallback=allow_environment_fallback,
+        )
         if approval_token is None:
             approval_token = extracted_approval
 
