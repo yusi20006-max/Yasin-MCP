@@ -12,8 +12,10 @@ from yasin_mcp.adapters.docs import YasinDocsAdapter
 from yasin_mcp.adapters.github import GitHubAdapter
 from yasin_mcp.adapters.operations import OperationsAdapter
 from yasin_mcp.adapters.project_registry import ProjectRegistryAdapter
+from yasin_mcp.approval import InMemoryApprovalStore
 from yasin_mcp.capabilities.docs_registration import register_docs_tools
 from yasin_mcp.capabilities.github_registration import register_github_tools
+from yasin_mcp.capabilities.governance_ref_registration import register_governance_ref_tools
 from yasin_mcp.capabilities.operations_registration import register_operations_tools
 from yasin_mcp.capabilities.registry import (
     CapabilityCatalog,
@@ -50,6 +52,11 @@ from yasin_mcp.tools.github import (
     TOOL_LIST_RELEASES,
     TOOL_LIST_WORKFLOWS,
     GitHubToolset,
+)
+from yasin_mcp.tools.governance_ref import (
+    TOOL_GOV_APPLY_MARK,
+    TOOL_GOV_PING_LOW_RISK,
+    GovernanceReferenceToolset,
 )
 from yasin_mcp.tools.operations import (
     TOOL_DIAGNOSTICS,
@@ -102,7 +109,6 @@ class ServerRuntime:
         auditor: AuditRecorder | None = None,
         governance: GovernanceGate | None = None,
     ) -> ServerRuntime:
-        """Construct the MCP server, register tools, and wrap them with governance."""
         resolved_config = config if config is not None else ServerConfig()
         resolved_registry = registry if registry is not None else CapabilityRegistry()
         ops_adapter = operations_adapter if operations_adapter is not None else OperationsAdapter()
@@ -126,6 +132,7 @@ class ServerRuntime:
         register_github_tools(resolved_registry)
         register_registry_tools(resolved_registry)
         operations_registered = register_operations_tools(resolved_registry, ops_adapter)
+        register_governance_ref_tools(resolved_registry)
 
         risk_catalog = _catalog_from_registry(resolved_registry)
         gate = governance or GovernanceGate(
@@ -133,6 +140,7 @@ class ServerRuntime:
             policy=policy or DefaultConservativePolicy(),
             auditor=auditor or LoggingAuditRecorder(),
             security_config=resolved_config,
+            approval_store=InMemoryApprovalStore(),
         )
         for name in risk_catalog.known_names():
             if name not in gate.catalog:
@@ -173,6 +181,10 @@ class ServerRuntime:
         add_governed(reg_tools.list_projects, TOOL_LIST_PROJECTS)
         add_governed(reg_tools.get_project, TOOL_GET_PROJECT)
         add_governed(reg_tools.list_dependencies, TOOL_LIST_DEPS)
+
+        gov_ref = GovernanceReferenceToolset()
+        add_governed(gov_ref.ping_low_risk, TOOL_GOV_PING_LOW_RISK)
+        add_governed(gov_ref.apply_mark, TOOL_GOV_APPLY_MARK)
 
         if operations_registered:
             toolset = OperationsToolset(ops_adapter)
