@@ -4,9 +4,9 @@ Standalone AI/Agent-facing MCP (Model Context Protocol) access and integration l
 
 ## Status
 
-**Yasin-MCP roadmap Stages 1–15 are complete on the controlled-integration path.** Master #96 is the roadmap closure gate. After Stage 15 merges with its final quality evidence, no planned Stage 16 remains.
+**Yasin-MCP roadmap Stages 1–15 are complete on the controlled-integration path.** Master #96 is the roadmap closure gate. Stage 15 is the final planned roadmap stage; no planned Stage 16 remains.
 
-The repository is **READY_FOR_CONTROLLED_RELEASE / READY_FOR_CONTROLLED_INTEGRATION**. This classification does not claim a production deployment or package publication that has not actually occurred.
+The repository has reached a **stable v1.0.0 release** for the currently verified scope. The release is suitable for controlled integration. This classification does not claim a public package publication or unrestricted production deployment.
 
 ### Roadmap completion evidence
 
@@ -16,7 +16,17 @@ The repository is **READY_FOR_CONTROLLED_RELEASE / READY_FOR_CONTROLLED_INTEGRAT
 - **Stage 14 / #100 → PR #105 and lifecycle-resilience PR #106:** merged; bounded concurrency, deterministic lifecycle/isolation coverage, stress behavior, cleanup, slot recovery, and post-stress usability are covered.
 - **Stage 15 / #101:** final release, reproducibility, compatibility, documentation, transport, security, and roadmap-closure verification.
 
-See [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) for the current final assessment.
+### Current verification
+
+The latest controlled Termux verification completed successfully:
+
+- **402 tests passed**
+- **2 tests skipped**
+- Native Termux environment verified with **Python 3.14.6**
+- `cryptography 50.0.1` imported successfully in the verified environment
+- Operations subprocess transport verified using a Termux-compatible Python gateway invocation
+
+See [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) and [`docs/compatibility/YASIN_MCP_TERMUX_COMPATIBILITY.md`](docs/compatibility/YASIN_MCP_TERMUX_COMPATIBILITY.md) for the detailed assessment and Termux evidence.
 
 ## Architecture boundary
 
@@ -74,14 +84,18 @@ Remote deployments require TLS unless `remote_allow_insecure_http` is explicitly
 
 `pyproject.toml` declares:
 
-- package version: `0.1.0`
+- package version: `0.1.0` (the package metadata version remains independent from the Git release tag)
 - `requires-python = ">=3.10"`
 - `mcp>=2,<3`
 - `PyYAML>=6,<7`
 
 CI validates Python 3.10, 3.11, and 3.12 with Ruff, Mypy, Bandit, and pytest.
 
-Native Termux Python 3.14.x remains unsupported/unverified because of the documented external `cryptography` ABI limitation. The observed native-Termux failure references the missing `PyLong_Type` symbol; this does not change the normal supported CPython range.
+### Termux
+
+**Native Termux compatibility is verified for the current repository state.** The verified environment is Android/Termux on aarch64 with Python 3.14.6. The repository includes a dedicated `scripts/termux-test.sh` compatibility check and the Operations adapter supports the Termux Python-gateway invocation model.
+
+Termux verification is an environment-specific compatibility result; it does not change the declared general CPython requirement above or imply that every Android/Termux package combination is supported.
 
 ## Development
 
@@ -92,6 +106,13 @@ ruff check .
 ruff format --check .
 mypy src
 bandit -q -r src
+```
+
+For Termux verification:
+
+```bash
+source .venv/bin/activate
+bash scripts/termux-test.sh
 ```
 
 ## Documentation index
@@ -116,4 +137,4 @@ bandit -q -r src
 
 Master #96 defines the current five-issue completion roadmap. Stage 15 is its final planned stage. Future maintenance or genuinely new product features may be added later, but omitted roadmap work must not be hidden under a new Stage 16.
 
-Native Termux compatibility is explicitly documented above; this repository does not claim native Termux Python 3.14.x support unless that external dependency/ABI limitation is independently resolved and verified.
+Native Termux compatibility is explicitly documented as **verified for the current repository state** based on the controlled test evidence above.
