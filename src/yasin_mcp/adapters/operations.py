@@ -25,6 +25,7 @@ ENOENT even when the file exists and is executable.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -105,6 +106,17 @@ class OperationsResult:
 
 
 def _executable_available(executable: str) -> bool:
+    """Return whether the configured gateway can be launched.
+
+    Python gateway scripts are intentionally considered available when
+    the file exists and is readable. On Termux/Android, an executable
+    temporary `.py` file can still fail with ENOENT when invoked directly
+    because Android's loader cannot honor its shebang from some temporary
+    filesystem locations. `_command_for_executable` launches such scripts
+    through the active Python interpreter instead.
+    """
+    if executable.endswith(".py"):
+        return os.path.isfile(executable) and os.access(executable, os.R_OK)
     return shutil.which(executable) is not None
 
 
