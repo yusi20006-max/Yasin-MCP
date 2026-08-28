@@ -11,6 +11,11 @@ requires-python = ">=3.10"
 dependencies = [
     "mcp>=2,<3",
     "PyYAML>=6,<7",
+    # Termux/Android Python 3.14 currently needs the Python shared library
+    # preloaded for cryptography's Rust extension to resolve CPython symbols.
+    # Keep this constraint explicit so the dependency is reproducible while
+    # the upstream Termux dynamic-linking issue is unresolved.
+    "cryptography<49; platform_system == 'Android'",
 ]
 
 [project.optional-dependencies]
