@@ -9,6 +9,7 @@ transport-agnostic and does not currently ship an MCP transport dependency.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import threading
 import time
@@ -40,8 +41,6 @@ class AgentExecutionContext:
     correlation_id: str
 
     def headers(self) -> dict[str, str]:
-        import json
-
         context = {
             "client_id": "yasin-agent-stage13",
             "agent_id": self.agent_id,
@@ -105,15 +104,31 @@ def _config(port: int) -> ServerConfig:
     )
 
 
-def _start_server(port: int, runtime: ServerRuntime) -> tuple[uvicorn.Server, threading.Thread]:
+def _start_server(
+    port: int,
+    runtime: ServerRuntime,
+) -> tuple[uvicorn.Server, threading.Thread]:
     app = build_remote_asgi_app(runtime.server, runtime.config)
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    server = uvicorn.Server(
+        uvicorn.Config(
+            app,
+            host="127.0.0.1",
+            port=port,
+            log_level="warning",
+        )
+    )
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     deadline = time.time() + 5
     while time.time() < deadline:
         try:
-            if httpx2.get(f"http://127.0.0.1:{port}/healthz", timeout=0.5).status_code == 200:
+            if (
+                httpx2.get(
+                    f"http://127.0.0.1:{port}/healthz",
+                    timeout=0.5,
+                ).status_code
+                == 200
+            ):
                 return server, thread
         except Exception:
             time.sleep(0.05)
@@ -124,6 +139,7 @@ def _start_server(port: int, runtime: ServerRuntime) -> tuple[uvicorn.Server, th
 
 def test_live_yasin_agent_compatible_client_context_auth_governance_and_approval() -> None:
     """One real remote MCP session crosses the complete governed boundary."""
+
     async def exercise() -> tuple[list[str], object, object]:
         port = 18766
         auditor = InMemoryAuditRecorder()
@@ -195,8 +211,6 @@ async def test_remote_context_isolation_and_malformed_context_fail_closed() -> N
         assert malformed.status_code == 400
         assert malformed.json()["code"] == "INVALID_CONTEXT"
 
-        import json
-
         for request_id in ("req-a", "req-b"):
             context = json.dumps(
                 {
@@ -217,5 +231,7 @@ async def test_remote_context_isolation_and_malformed_context_fail_closed() -> N
             )
             assert response.status_code != 401
 
-    # No request should have inherited malformed or stale context.
-    assert all(event.context.get("request_id") in {"req-a", "req-b"} for event in auditor.events)
+    assert all(
+        event.context.get("request_id") in {"req-a", "req-b"}
+        for event in auditor.events
+    )
