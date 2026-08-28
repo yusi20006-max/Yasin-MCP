@@ -23,8 +23,6 @@ test, and is not presented as one.
 
 from __future__ import annotations
 
-import stat
-import sys
 import textwrap
 from pathlib import Path
 
@@ -35,7 +33,6 @@ from yasin_mcp.tools.operations import OperationsToolset
 
 _FAKE_GATEWAY_SCRIPT = textwrap.dedent(
     """\
-    #!/usr/bin/env python3
     import json
     import sys
 
@@ -48,7 +45,7 @@ _FAKE_GATEWAY_SCRIPT = textwrap.dedent(
         "list_services": {"services": ["yasin-ai", "yasinpress"]},
         "service_status": {"name": request["target_identifier"], "state": "running"},
         "health_check": {"healthy": True},
-        "diagnostics": {"python_version": "3.12.0", "operating_system": "Linux"},
+        "diagnostics": {"python_version": "3.14.6", "operating_system": "Android/Termux"},
     }
 
     data = responses.get(operation)
@@ -80,38 +77,16 @@ _FAKE_GATEWAY_SCRIPT = textwrap.dedent(
 
 @pytest.fixture
 def fake_gateway_executable(tmp_path: Path) -> str:
-    """A real, executable script implementing the gateway wire protocol.
+    """A Python gateway script used through the adapter's subprocess path.
 
-    Used in place of the real `yasin-operations gateway` command so
-    this test has no dependency on Yasin-Operations being installed.
+    Termux/Android does not reliably execute temporary shebang scripts
+    directly, even when the file exists and has executable permissions.
+    The adapter therefore launches `.py` gateways through the active
+    Python interpreter, preserving the real subprocess + JSONL transport.
     """
-    script_path = tmp_path / "fake-yasin-operations"
+    script_path = tmp_path / "fake-yasin-operations.py"
     script_path.write_text(_FAKE_GATEWAY_SCRIPT, encoding="utf-8")
-    script_path.chmod(script_path.stat().st_mode | stat.S_IEXEC)
-
-    # The adapter invokes `[executable, "gateway"]`; wrap the fake
-    # script so that argv shape is honored without needing a real
-    # argparse subcommand structure.
-    wrapper_path = tmp_path / "yasin-operations-wrapper"
-    wrapper_path.write_text(
-        textwrap.dedent(
-            f"""\
-            #!/usr/bin/env python3
-            import sys
-            import subprocess
-            # Ignore the "gateway" argv[1] the adapter always passes;
-            # this fake only implements the gateway subcommand.
-            subprocess.run(
-                ["{sys.executable}", "{script_path}"],
-                stdin=sys.stdin,
-                stdout=sys.stdout,
-            )
-            """
-        ),
-        encoding="utf-8",
-    )
-    wrapper_path.chmod(wrapper_path.stat().st_mode | stat.S_IEXEC)
-    return str(wrapper_path)
+    return str(script_path)
 
 
 def test_end_to_end_list_services(fake_gateway_executable: str):
@@ -154,6 +129,7 @@ def test_end_to_end_diagnostics(fake_gateway_executable: str):
 
     assert result["success"] is True
     assert "python_version" in result["data"]
+    assert result["data"]["operating_system"] == "Android/Termux"
 
 
 def test_end_to_end_mutation_attempt_is_structurally_impossible(fake_gateway_executable: str):
