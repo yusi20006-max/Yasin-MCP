@@ -8,7 +8,6 @@ from enum import Enum
 
 from yasin_mcp.errors.errors import PolicyDeniedError
 
-# Stage 11 lifts registration-time mutation ban; runtime still governed.
 PHASE_1_READ_ONLY = False
 
 
@@ -31,7 +30,7 @@ _FORBIDDEN_NAME_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^request$", re.IGNORECASE),
     re.compile(r"arbitrary", re.IGNORECASE),
     re.compile(r"filesystem", re.IGNORECASE),
-    re.compile(r"\\bdeploy", re.IGNORECASE),
+    re.compile(r"\bdeploy", re.IGNORECASE),
     re.compile(r"delete", re.IGNORECASE),
     re.compile(r"^(start|stop|restart)_", re.IGNORECASE),
 )
