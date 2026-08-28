@@ -8,13 +8,18 @@ runnable whether or not Yasin-Operations is installed, on PATH, or
 running.
 
 Security boundary: this module never uses shell=True, os.system,
-eval, or exec. The subprocess command is a fixed, hardcoded
-argument list (`[executable, "gateway"]`) -- no caller-supplied
-string is ever used to build a shell command. The four operations
-this adapter can invoke (list_services, service_status,
+eval, or exec. The subprocess command is a fixed argument list -- no
+caller-supplied string is ever used to build a shell command. The four
+operations this adapter can invoke (list_services, service_status,
 health_check, diagnostics) are hardcoded Python constants, never
 derived from caller input, so a caller cannot request any other
 operation -- including a mutating one -- through this adapter.
+
+Termux/Android portability: Python gateway scripts are launched
+through the active Python interpreter instead of relying on the
+script's shebang. Termux can execute Python subprocesses normally,
+but direct execution of temporary shebang scripts may fail with
+ENOENT even when the file exists and is executable.
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -37,10 +43,6 @@ from yasin_mcp.errors.errors import (
 from yasin_mcp.security.untrusted_context import attach_untrusted_envelope
 from yasin_mcp.version import EvidenceStatus
 
-# Fixed, non-configurable set of operations this adapter will ever
-# request. This is the enforcement point that prevents a caller from
-# reaching any operation other than these four -- there is no code
-# path in this module that accepts an operation name as a parameter.
 OPERATION_LIST_SERVICES = "list_services"
 OPERATION_SERVICE_STATUS = "service_status"
 OPERATION_HEALTH_CHECK = "health_check"
@@ -55,10 +57,6 @@ _ALLOWED_OPERATIONS = frozenset(
     }
 )
 
-# Every request this adapter sends declares safety_class itself --
-# it is never accepted from a caller. See operations.py's tool layer
-# for the corresponding guarantee that MCP tool inputs cannot supply
-# an operation name or safety_class either.
 _SAFETY_CLASS_READ_ONLY = "read_only"
 
 DEFAULT_GATEWAY_EXECUTABLE = "yasin-operations"
@@ -108,6 +106,20 @@ class OperationsResult:
 
 def _executable_available(executable: str) -> bool:
     return shutil.which(executable) is not None
+
+
+def _command_for_executable(executable: str) -> list[str]:
+    """Build the argv used to launch the gateway without invoking a shell.
+
+    Native gateway binaries/commands keep the historical
+    `[executable, "gateway"]` form. Python gateway scripts are invoked
+    by the current interpreter so they work on Termux/Android even
+    when their shebang cannot be executed directly from a temporary
+    filesystem path.
+    """
+    if executable.endswith(".py"):
+        return [sys.executable, executable, "gateway"]
+    return [executable, "gateway"]
 
 
 def _build_request(operation: str, target_kind: str, target_identifier: str) -> dict[str, Any]:
@@ -161,7 +173,7 @@ class OperationsAdapter:
 
         try:
             completed = subprocess.run(  # noqa: S603
-                [self.executable, "gateway"],
+                _command_for_executable(self.executable),
                 input=line,
                 capture_output=True,
                 text=True,
