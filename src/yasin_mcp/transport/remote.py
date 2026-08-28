@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 import logging
 from typing import Any
 
@@ -15,13 +16,32 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from yasin_mcp.auth.request_state import auth_request_scope
 from yasin_mcp.config.config import ServerConfig
+from yasin_mcp.contracts.integration_context import IntegrationContext
 from yasin_mcp.transport.bearer import extract_bearer_token
 
 logger = logging.getLogger(__name__)
 
+_CONTEXT_HEADER = "x-yasin-context"
+_MAX_CONTEXT_HEADER_LENGTH = 8192
+
+
+def _extract_integration_context(raw: str | None) -> IntegrationContext | None:
+    """Parse the optional remote integration context and fail closed."""
+    if not raw:
+        return None
+    if len(raw) > _MAX_CONTEXT_HEADER_LENGTH:
+        raise ValueError("integration context header too large")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("integration context is not valid JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("integration context must be a JSON object")
+    return IntegrationContext.from_mapping(payload)
+
 
 class RequireBearerAuthMiddleware:
-    """Validate Bearer against configured shared secret before MCP handlers."""
+    """Validate Bearer and bind an optional asserted ecosystem context."""
 
     def __init__(
         self,
@@ -46,6 +66,20 @@ class RequireBearerAuthMiddleware:
         headers = {
             k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers") or []
         }
+        try:
+            asserted = _extract_integration_context(headers.get(_CONTEXT_HEADER))
+        except ValueError as exc:
+            response = JSONResponse(
+                {
+                    "error_contract_version": "1.0.0",
+                    "code": "INVALID_CONTEXT",
+                    "message": str(exc),
+                },
+                status_code=400,
+            )
+            await response(scope, receive, send)
+            return
+
         token = extract_bearer_token(headers.get("authorization"))
 
         if self.required:
@@ -71,12 +105,16 @@ class RequireBearerAuthMiddleware:
                 )
                 await response(scope, receive, send)
                 return
-            with auth_request_scope(presented_secret=token):
+            with auth_request_scope(presented_secret=token, asserted=asserted):
                 await self.app(scope, receive, send)
             return
 
         if token and self.expected_secret and hmac.compare_digest(token, self.expected_secret):
-            with auth_request_scope(presented_secret=token):
+            with auth_request_scope(presented_secret=token, asserted=asserted):
+                await self.app(scope, receive, send)
+            return
+        if asserted is not None:
+            with auth_request_scope(asserted=asserted):
                 await self.app(scope, receive, send)
             return
         await self.app(scope, receive, send)
