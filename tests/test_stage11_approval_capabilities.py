@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -21,7 +20,9 @@ from yasin_mcp.server.runtime import ServerRuntime
 from yasin_mcp.tools.governance_ref import TOOL_GOV_APPLY_MARK, TOOL_GOV_PING_LOW_RISK
 
 
-def _gate(store: InMemoryApprovalStore | None = None) -> tuple[GovernanceGate, InMemoryApprovalStore]:
+def _gate(
+    store: InMemoryApprovalStore | None = None,
+) -> tuple[GovernanceGate, InMemoryApprovalStore]:
     store = store or InMemoryApprovalStore()
     gate = GovernanceGate(
         ToolRiskCatalog(
@@ -97,9 +98,7 @@ def test_token_stripped() -> None:
         return "ok"
 
     assert (
-        gate.execute(
-            TOOL_GOV_APPLY_MARK, tool, kwargs={APPROVAL_TOKEN_KWARG: token, "mark": "m"}
-        )
+        gate.execute(TOOL_GOV_APPLY_MARK, tool, kwargs={APPROVAL_TOKEN_KWARG: token, "mark": "m"})
         == "ok"
     )
     assert APPROVAL_TOKEN_KWARG not in seen[0]

@@ -48,6 +48,12 @@ class ServerConfig:
     auth_token: SecretStr | None = None
     auth_subject_id: str = "local-operator"
     require_authentication: bool = False
+    remote_enabled: bool = False
+    remote_host: str = "127.0.0.1"
+    remote_port: int = 8443
+    remote_tls_certfile: str | None = None
+    remote_tls_keyfile: str | None = None
+    remote_allow_insecure_http: bool = False
 
     def __post_init__(self) -> None:
         if self.log_level not in _VALID_LOG_LEVELS:
@@ -75,6 +81,22 @@ class ServerConfig:
             raise InvalidConfigurationError(
                 "require_authentication=true requires YASIN_MCP_AUTH_TOKEN to be set"
             )
+        if not 1 <= self.remote_port <= 65535:
+            raise InvalidConfigurationError("remote_port must be between 1 and 65535")
+        if (
+            self.remote_enabled
+            and self.require_authentication
+            and (self.auth_token is None or not self.auth_token.get_secret_value())
+        ):
+            raise InvalidConfigurationError(
+                "remote_enabled with authentication requires YASIN_MCP_AUTH_TOKEN"
+            )
+        if self.remote_enabled and not self.remote_allow_insecure_http:
+            if not self.remote_tls_certfile or not self.remote_tls_keyfile:
+                raise InvalidConfigurationError(
+                    "remote TLS requires certfile and keyfile unless "
+                    "remote_allow_insecure_http is enabled for local testing"
+                )
 
 
 def _env_str(name: str, default: str) -> str:
@@ -122,4 +144,10 @@ def load_config() -> ServerConfig:
         auth_token=_env_secret("YASIN_MCP_AUTH_TOKEN"),
         auth_subject_id=_env_str("YASIN_MCP_AUTH_SUBJECT", "local-operator"),
         require_authentication=_env_bool("YASIN_MCP_REQUIRE_AUTH", False),
+        remote_enabled=_env_bool("YASIN_MCP_REMOTE_ENABLED", False),
+        remote_host=_env_str("YASIN_MCP_REMOTE_HOST", "127.0.0.1"),
+        remote_port=_env_int("YASIN_MCP_REMOTE_PORT", 8443),
+        remote_tls_certfile=os.environ.get("YASIN_MCP_REMOTE_TLS_CERTFILE") or None,
+        remote_tls_keyfile=os.environ.get("YASIN_MCP_REMOTE_TLS_KEYFILE") or None,
+        remote_allow_insecure_http=_env_bool("YASIN_MCP_REMOTE_ALLOW_INSECURE_HTTP", False),
     )
