@@ -47,7 +47,7 @@ class AgentExecutionContext:
 
     def headers(self) -> dict[str, str]:
         context = {
-            "client_id": "yasin-agent-stage13",
+            "client_id": self.agent_id,
             "agent_id": self.agent_id,
             "project_id": self.project_id,
             "workspace_id": self.workspace_id,
@@ -216,7 +216,7 @@ async def test_remote_context_isolation_and_malformed_context_fail_closed() -> N
         for request_id in ("req-a", "req-b"):
             context = json.dumps(
                 {
-                    "client_id": "yasin-agent-stage13",
+                    "client_id": "agent-stage13",
                     "agent_id": "agent-stage13",
                     "project_id": "project-stage13",
                     "task_id": request_id,
