@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.errors.errors import RateLimitedError
-from yasin_mcp.governance.audit import InMemoryAuditRecorder
+from yasin_mcp.governance.audit import AuditEventType, InMemoryAuditRecorder
 from yasin_mcp.governance.catalog import ToolRiskCatalog
 from yasin_mcp.governance.gate import GovernanceGate
 from yasin_mcp.governance.types import GovernanceContext, RiskLevel
@@ -121,7 +122,8 @@ def test_repeated_sessions_keep_request_identity_isolated_and_audited() -> None:
     assert len({item.session_id for item in observed}) == 50
     assert len({item.request_id for item in observed}) == 50
     assert len({item.correlation_id for item in observed}) == 50
-    requests = auditor.of_type(__import__("yasin_mcp.governance.audit", fromlist=["AuditEventType"]).AuditEventType.REQUEST)
+
+    requests = auditor.of_type(AuditEventType.REQUEST)
     assert len(requests) == 50
     assert [event.context["request_id"] for event in requests] == [
         f"request-{index}" for index in range(50)
@@ -144,7 +146,7 @@ def test_bounded_stress_never_exceeds_configured_concurrency_and_recovers() -> N
             active += 1
             maximum = max(maximum, active)
         try:
-            assert threading.Event().wait(0.01)
+            time.sleep(0.01)
             return "ok"
         finally:
             with lock:
