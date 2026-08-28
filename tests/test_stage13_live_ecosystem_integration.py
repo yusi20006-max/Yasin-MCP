@@ -18,12 +18,16 @@ from dataclasses import dataclass
 import httpx2
 import pytest
 import uvicorn
+from starlette.applications import Starlette
+from starlette.responses import PlainTextResponse
+from starlette.routing import Route
 
 from yasin_mcp.approval.constants import APPROVAL_PRESENT_ENV
+from yasin_mcp.auth.request_state import get_asserted_context
 from yasin_mcp.config.config import SecretStr, ServerConfig
 from yasin_mcp.governance.audit import AuditEventType, InMemoryAuditRecorder
 from yasin_mcp.server.runtime import ServerRuntime
-from yasin_mcp.transport.remote import build_remote_asgi_app
+from yasin_mcp.transport.remote import RequireBearerAuthMiddleware, build_remote_asgi_app
 
 SECRET = "TEST_STAGE13_ECOSYSTEM_SECRET"
 
@@ -76,7 +80,7 @@ class LiveYasinAgentClient:
             async with streamable_http_client(
                 self.url,
                 http_client=http_client,
-            ) as (read_stream, write_stream, _session_id):
+            ) as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
                     tools = await session.list_tools()
@@ -178,9 +182,22 @@ def test_live_yasin_agent_compatible_client_context_auth_governance_and_approval
 @pytest.mark.anyio
 async def test_remote_context_isolation_and_malformed_context_fail_closed() -> None:
     """Different request contexts remain distinct and malformed input is rejected."""
-    auditor = InMemoryAuditRecorder()
-    runtime = ServerRuntime.create(_config(18767), auditor=auditor)
-    app = build_remote_asgi_app(runtime.server, runtime.config)
+
+    async def echo_context(_request):  # type: ignore[no-untyped-def]
+        context = get_asserted_context()
+        request_id = context.request_id if context is not None else "none"
+        return PlainTextResponse(request_id)
+
+    app = Starlette(
+        routes=[Route("/mcp", endpoint=echo_context, methods=["POST"])],
+        middleware=[
+            Middleware(
+                RequireBearerAuthMiddleware,
+                required=True,
+                expected_secret=SECRET,
+            )
+        ],
+    )
 
     async with httpx2.AsyncClient(
         base_url="http://test",
@@ -213,6 +230,5 @@ async def test_remote_context_isolation_and_malformed_context_fail_closed() -> N
                 headers={"X-Yasin-Context": context},
                 json={},
             )
-            assert response.status_code != 401
-
-    assert all(event.context.get("request_id") in {"req-a", "req-b"} for event in auditor.events)
+            assert response.status_code == 200
+            assert response.text == request_id
