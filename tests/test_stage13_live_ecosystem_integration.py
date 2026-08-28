@@ -19,6 +19,7 @@ import httpx2
 import pytest
 import uvicorn
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.responses import PlainTextResponse
 from starlette.routing import Route
 
