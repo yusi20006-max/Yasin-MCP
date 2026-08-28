@@ -284,7 +284,10 @@ class GovernanceGate:
                 raise_as_mcp_tool_error(
                     RateLimitedError(
                         "MCP concurrency limit reached; retry later",
-                        details={"limit": gate._concurrency_limit, "reason_code": "concurrency_limit"},
+                        details={
+                            "limit": gate._concurrency_limit,
+                            "reason_code": "concurrency_limit",
+                        },
                     )
                 )
             try:
