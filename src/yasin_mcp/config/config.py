@@ -83,8 +83,10 @@ class ServerConfig:
             )
         if not 1 <= self.remote_port <= 65535:
             raise InvalidConfigurationError("remote_port must be between 1 and 65535")
-        if self.remote_enabled and self.require_authentication and (
-            self.auth_token is None or not self.auth_token.get_secret_value()
+        if (
+            self.remote_enabled
+            and self.require_authentication
+            and (self.auth_token is None or not self.auth_token.get_secret_value())
         ):
             raise InvalidConfigurationError(
                 "remote_enabled with authentication requires YASIN_MCP_AUTH_TOKEN"
@@ -108,9 +110,7 @@ def _env_int(name: str, default: int) -> int:
     try:
         return int(raw)
     except ValueError:
-        raise InvalidConfigurationError(
-            f"Environment variable {name} must be an integer"
-        ) from None
+        raise InvalidConfigurationError(f"Environment variable {name} must be an integer") from None
 
 
 def _env_secret(name: str) -> SecretStr | None:
@@ -129,18 +129,14 @@ def _env_bool(name: str, default: bool = False) -> bool:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    raise InvalidConfigurationError(
-        f"Environment variable {name} must be a boolean (true/false)"
-    )
+    raise InvalidConfigurationError(f"Environment variable {name} must be a boolean (true/false)")
 
 
 def load_config() -> ServerConfig:
     """Build validated configuration from environment variables."""
     return ServerConfig(
         log_level=_env_str("YASIN_MCP_LOG_LEVEL", "INFO").upper(),
-        request_timeout_seconds=_env_int(
-            "YASIN_MCP_REQUEST_TIMEOUT_SECONDS", _DEFAULT_TIMEOUT
-        ),
+        request_timeout_seconds=_env_int("YASIN_MCP_REQUEST_TIMEOUT_SECONDS", _DEFAULT_TIMEOUT),
         max_concurrent_requests=_env_int(
             "YASIN_MCP_MAX_CONCURRENT_REQUESTS", _DEFAULT_MAX_CONCURRENCY
         ),
@@ -153,7 +149,5 @@ def load_config() -> ServerConfig:
         remote_port=_env_int("YASIN_MCP_REMOTE_PORT", 8443),
         remote_tls_certfile=os.environ.get("YASIN_MCP_REMOTE_TLS_CERTFILE") or None,
         remote_tls_keyfile=os.environ.get("YASIN_MCP_REMOTE_TLS_KEYFILE") or None,
-        remote_allow_insecure_http=_env_bool(
-            "YASIN_MCP_REMOTE_ALLOW_INSECURE_HTTP", False
-        ),
+        remote_allow_insecure_http=_env_bool("YASIN_MCP_REMOTE_ALLOW_INSECURE_HTTP", False),
     )

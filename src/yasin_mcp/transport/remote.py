@@ -44,8 +44,7 @@ class RequireBearerAuthMiddleware:
             return
 
         headers = {
-            k.decode("latin-1").lower(): v.decode("latin-1")
-            for k, v in scope.get("headers") or []
+            k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers") or []
         }
         token = extract_bearer_token(headers.get("authorization"))
 
@@ -61,9 +60,7 @@ class RequireBearerAuthMiddleware:
                 )
                 await response(scope, receive, send)
                 return
-            if not self.expected_secret or not hmac.compare_digest(
-                token, self.expected_secret
-            ):
+            if not self.expected_secret or not hmac.compare_digest(token, self.expected_secret):
                 response = JSONResponse(
                     {
                         "error_contract_version": "1.0.0",
@@ -78,9 +75,7 @@ class RequireBearerAuthMiddleware:
                 await self.app(scope, receive, send)
             return
 
-        if token and self.expected_secret and hmac.compare_digest(
-            token, self.expected_secret
-        ):
+        if token and self.expected_secret and hmac.compare_digest(token, self.expected_secret):
             with auth_request_scope(presented_secret=token):
                 await self.app(scope, receive, send)
             return
@@ -101,9 +96,7 @@ def build_remote_asgi_app(
     async def healthz(_request: Request) -> Response:
         return JSONResponse({"status": "ok"})
 
-    expected = (
-        config.auth_token.get_secret_value() if config.auth_token is not None else None
-    )
+    expected = config.auth_token.get_secret_value() if config.auth_token is not None else None
     middleware = [
         Middleware(
             RequireBearerAuthMiddleware,

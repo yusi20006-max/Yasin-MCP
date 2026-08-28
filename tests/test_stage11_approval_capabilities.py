@@ -98,9 +98,7 @@ def test_token_stripped() -> None:
         return "ok"
 
     assert (
-        gate.execute(
-            TOOL_GOV_APPLY_MARK, tool, kwargs={APPROVAL_TOKEN_KWARG: token, "mark": "m"}
-        )
+        gate.execute(TOOL_GOV_APPLY_MARK, tool, kwargs={APPROVAL_TOKEN_KWARG: token, "mark": "m"})
         == "ok"
     )
     assert APPROVAL_TOKEN_KWARG not in seen[0]

@@ -61,9 +61,7 @@ async def test_middleware_rejects_missing_and_invalid_bearer() -> None:
         r = await client.post("/mcp", json={})
         assert r.status_code == 401
         assert r.json()["code"] == "AUTHENTICATION_REQUIRED"
-        r = await client.post(
-            "/mcp", headers={"Authorization": "Bearer WRONG"}, json={}
-        )
+        r = await client.post("/mcp", headers={"Authorization": "Bearer WRONG"}, json={})
         assert r.status_code == 401
         assert r.json()["code"] == "AUTHENTICATION_FAILED"
         assert SECRET not in r.text
