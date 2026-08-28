@@ -1,4 +1,4 @@
-"""Request-scoped authentication material (Stage 8).
+"""Request-scoped authentication material (Stage 8 / Stage 10).
 
 Uses contextvars so concurrent requests cannot share identity/credentials.
 Credentials are never logged by this module.
@@ -6,6 +6,7 @@ Credentials are never logged by this module.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -21,7 +22,13 @@ AUTH_TOKEN_KWARG = "_yasin_auth_token"
 
 
 def get_presented_secret() -> str | None:
-    return _presented_secret.get()
+    value = _presented_secret.get()
+    if value is not None:
+        return value
+    # Stdio process-boundary presentation: parent may inject env when launching
+    # the server. Prefer request-scoped contextvar / tool kwarg when set.
+    env_val = os.environ.get("YASIN_MCP_PRESENT_AUTH_TOKEN")
+    return env_val if env_val else None
 
 
 def get_asserted_context() -> IntegrationContext | None:
