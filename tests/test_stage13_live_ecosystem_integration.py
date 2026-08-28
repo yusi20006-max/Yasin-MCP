@@ -104,31 +104,15 @@ def _config(port: int) -> ServerConfig:
     )
 
 
-def _start_server(
-    port: int,
-    runtime: ServerRuntime,
-) -> tuple[uvicorn.Server, threading.Thread]:
+def _start_server(port: int, runtime: ServerRuntime) -> tuple[uvicorn.Server, threading.Thread]:
     app = build_remote_asgi_app(runtime.server, runtime.config)
-    server = uvicorn.Server(
-        uvicorn.Config(
-            app,
-            host="127.0.0.1",
-            port=port,
-            log_level="warning",
-        )
-    )
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     deadline = time.time() + 5
     while time.time() < deadline:
         try:
-            if (
-                httpx2.get(
-                    f"http://127.0.0.1:{port}/healthz",
-                    timeout=0.5,
-                ).status_code
-                == 200
-            ):
+            if httpx2.get(f"http://127.0.0.1:{port}/healthz", timeout=0.5).status_code == 200:
                 return server, thread
         except Exception:
             time.sleep(0.05)
@@ -231,7 +215,4 @@ async def test_remote_context_isolation_and_malformed_context_fail_closed() -> N
             )
             assert response.status_code != 401
 
-    assert all(
-        event.context.get("request_id") in {"req-a", "req-b"}
-        for event in auditor.events
-    )
+    assert all(event.context.get("request_id") in {"req-a", "req-b"} for event in auditor.events)
