@@ -1,80 +1,32 @@
 # Yasin-MCP
 
-Standalone AI/Agent-facing MCP (Model Context Protocol) access and
-integration layer for the Yasin ecosystem.
-
-## Mission
-
-Yasin-MCP exposes read-only, structured access to Yasin ecosystem
-information (project registry, documentation, GitHub repository
-state, runtime diagnostics) through the MCP protocol, so AI agents
-and MCP clients can query the ecosystem's state without needing
-direct, unbounded access to any individual repository or service.
+Standalone AI/Agent-facing MCP (Model Context Protocol) access and integration layer for the Yasin ecosystem.
 
 ## Status
 
-**P0, P1, P2, and P3 are complete.** Stages 1–5 (compatibility boundary,
-runtime baseline, governance, security hardening, production readiness)
-are complete on the controlled-integration path. The repository is
-currently **READY_FOR_CONTROLLED_RELEASE** / **READY_FOR_CONTROLLED_INTEGRATION**.
+**Yasin-MCP roadmap Stages 1–15 are complete on the controlled-integration path.** Master #96 is the roadmap closure gate. After Stage 15 merges with its final quality evidence, no planned Stage 16 remains.
 
-This status means the read-only MCP server has passed its repository,
-architecture, security-boundary, quality, and live stdio protocol
-validation gates. It is intentionally **not** classified as
-`PRODUCTION_READY` because vendor-specific external client sessions
-and always-on live upstream smoke tests are not mandatory evidence in
-this repository.
+The repository is **READY_FOR_CONTROLLED_RELEASE / READY_FOR_CONTROLLED_INTEGRATION**. This classification does not claim a production deployment or package publication that has not actually occurred.
 
-### Completed phases
+### Roadmap completion evidence
 
-- **P0 — Audit foundation:** Issues #35–#37 complete, including the
-  live MCP stdio audit with the official `mcp` client.
-- **P1 — Ecosystem integration and contracts:** Issues #38–#45
-  complete, covering YASIN-DOCS, GitHub, project registry,
-  Operations, agent/evidence contracts, E2E integration coverage,
-  and prompt-injection hardening.
-- **P2 — Runtime hardening:** P2-1 through P2-9 complete, including
-  untrusted-context enforcement, live MCP regression harness,
-  capability-surface versioning, request correlation and reliability
-  policy, registry validation, Operations discovery, and external
-  client smoke procedures.
-- **P3 — Documentation and release readiness:** Issues #51–#53
-  complete, including architecture documentation, operational
-  runbook, release-readiness assessment, and residual untrusted-data
-  path fixes.
-- **Stages 1–5:** Termux boundary (#78), governance (#80), security
-  hardening (#82), production readiness (#84).
+- **Stage 11 / #97:** merged.
+- **Stage 12 / #98 → PR #103:** merged.
+- **Stage 13 / #99 → PR #104:** merged; live ecosystem-compatible MCP client path verified over authenticated Streamable HTTP, including identity propagation, governance, approval, execution, audit correlation, and fail-closed malformed context handling.
+- **Stage 14 / #100 → PR #105 and lifecycle-resilience PR #106:** merged; bounded concurrency, deterministic lifecycle/isolation coverage, stress behavior, cleanup, slot recovery, and post-stress usability are covered.
+- **Stage 15 / #101:** final release, reproducibility, compatibility, documentation, transport, security, and roadmap-closure verification.
 
-### Current evidence classification
-
-- MCP protocol and current tool surface: **CONFIRMED / LIVE_RUNTIME**
-- Read-only and deny-by-default boundaries: **CONFIRMED**
-- Untrusted content envelopes: **CONFIRMED**
-- Reliability and bounded retry policy: **CONFIRMED**
-- Governance + security fail-closed: **CONFIRMED**
-- CI quality gates: **CONFIRMED**
-- Hermes live integration: **UNRESOLVED**
-- Yasin-Agent live session: **UNRESOLVED**
-- Optional live GitHub/Docs upstream CI: **UNRESOLVED / not required**
-- Global MCP-level request middleware: **PARTIAL**
-
-These classifications are deliberate. `UNRESOLVED` must never be
-presented as `CONFIRMED` merely because an integration is documented.
+See [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) for the current final assessment.
 
 ## Architecture boundary
 
-- Yasin-MCP does **not** replace YASIN-DOCS, Yasin-Core, Yasin-Agent,
-  Yasin-AI, YasinHub, YasinCLI, or Yasin-Operations.
-- The MCP surface is strictly **read-only**: no repository mutation,
-  deployment, lifecycle mutation (start/stop/restart), memory mutation,
-  or arbitrary shell/command execution.
-- No private cross-repository imports. Integrations use public APIs,
-  SDKs, contracts, or explicit read-only adapters.
-- Existing Yasin projects must not become dependent on Yasin-MCP.
-- A deny-by-default policy boundary (`policies/policy.py`) rejects
-  forbidden or mutating capabilities at construction time.
-- Tool execution is governed by the centralized `GovernanceGate`
-  (see `docs/GOVERNANCE.md`).
+Yasin-MCP does **not** replace YASIN-DOCS, Yasin-Core, Yasin-Agent, Yasin-AI, YasinHub, YasinCLI, or Yasin-Operations. It is an access/integration layer.
+
+- MCP capabilities are read-only at the product surface unless an explicitly governed reference capability is present for testing governance behavior.
+- No generic shell passthrough or arbitrary command execution is exposed.
+- Integrations use public APIs, SDKs, contracts, or explicit adapters; no private cross-repository imports are required.
+- Tool execution crosses the centralized `GovernanceGate` for authentication, approval, policy, audit, and bounded-concurrency enforcement.
+- External/untrusted content is represented using explicit evidence/trust boundaries and is not treated as instructions.
 
 ## Tool surface
 
@@ -83,154 +35,53 @@ Always available:
 - `yasin_docs_*` — documentation access
 - `yasin_github_*` — read-only GitHub ecosystem access
 - `yasin_registry_*` — project/dependency registry access
+- `yasin_gov_*` — governance reference capabilities used to exercise policy/approval boundaries
 
 Conditionally available:
 
-- `yasin_operations_*` — registered only when the
-  `yasin-operations` executable is available on `PATH`.
+- `yasin_operations_*` — registered only when the `yasin-operations` executable is available on `PATH`.
 
-The exact capability surface is versioned independently through
-`CAPABILITY_SURFACE_VERSION` and exposed through `surface_info()`.
-
-## Package layout
-
-```
-src/yasin_mcp/
-    server/        MCP server runtime
-    protocol/      MCP protocol types/boundary
-    capabilities/  capability descriptor + discovery
-    tools/         MCP tool implementations
-    resources/     MCP resource implementations
-    adapters/      domain adapters: YASIN-DOCS, GitHub, Operations
-    governance/    risk, policy, audit, central enforcement
-    policies/      deny-by-default policy boundary
-    errors/        structured error model
-    audit/         structured logging, correlation IDs
-    config/        configuration model, secret handling
-    version.py     package version, EvidenceStatus and surface version
-```
+The capability surface is versioned independently through `CAPABILITY_SURFACE_VERSION`.
 
 ## Evidence model
 
-Responses that report ecosystem state should tag information with
-one of:
+Responses that report ecosystem state use one of:
 
-- `CONFIRMED` — directly observed from a live, authoritative source
-- `TARGET` — documented intent/architecture, not verified against a
-  running system
-- `PROPOSED` — a suggestion or plan, not yet implemented anywhere
-- `UNRESOLVED` — could not be determined; must not be presented as fact
+- `CONFIRMED` — directly observed from a live authoritative source
+- `TARGET` — documented intent/architecture, not verified live
+- `PROPOSED` — suggestion or plan, not implemented
+- `UNRESOLVED` — could not be determined; never present this as fact
 
-## Security boundary
+## Security and governance
 
-Yasin-MCP treats retrieved documentation, GitHub content, registry
-content, and Operations output as external/untrusted data. Structural
-trust envelopes preserve the distinction between retrieved data and
-instructions; keyword detection is not treated as a sufficient
-security control.
+Yasin-MCP treats documentation, GitHub content, registry content, and Operations output as external/untrusted data. Structural trust/evidence envelopes preserve the distinction between retrieved data and instructions.
 
-The server is intentionally read-only and deny-by-default. There is
-no generic shell passthrough, arbitrary command execution, mutation
-surface, or implicit trust elevation for external content.
+The governance path is centralized and fail-closed. Authentication is established at the boundary; approval is explicit for mutation-risk reference capabilities; policy decisions are audited; structured errors are used at public boundaries; and configured concurrency is bounded.
 
-## Yasin-Operations integration
+## Transport
 
-Yasin-MCP exposes four read-only MCP tools over Yasin-Operations
-(`yasin_operations_list_services`, `yasin_operations_service_status`,
-`yasin_operations_health`, `yasin_operations_diagnostics`), via a
-subprocess adapter that never imports the `yasin_operations` package
-directly and is registered only when the `yasin-operations`
-executable is available. See
-[`docs/OPERATIONS_INTEGRATION.md`](docs/OPERATIONS_INTEGRATION.md)
-for the full architecture, safety boundary, availability behavior,
-and known limitations.
+### stdio
 
-## Termux / Android
+The standard MCP stdio transport is supported and covered by the repository's live client/CLI validation surface.
 
-Yasin-MCP is a pure-Python package plus the `mcp` dependency and does
-not require a desktop-only runtime. However, **native Termux with
-Python 3.14.x is currently not a supported or verified runtime**.
+### Streamable HTTP
 
-The limitation is platform/dependency specific, not a general
-Python 3.14 language-version restriction and not a Yasin-MCP CLI
-logic failure.
+Remote transport is implemented through an ASGI application and supports bearer authentication. Stage 13 provides live local verification using the official MCP Python client, with a real `ClientSession`, Streamable HTTP connection, authentication, context propagation, governance, approval, execution, and audit correlation.
 
-### Native Termux (Python 3.14.x) — unsupported
+Remote deployments require TLS unless `remote_allow_insecure_http` is explicitly enabled for local testing.
 
-Verified on Android / aarch64 / native Termux / Python 3.14.6 with
-`cryptography==50.0.0` and `mcp==2.0.0`:
+## Packaging and supported runtimes
 
-```text
-ImportError: dlopen failed: cannot locate symbol "PyLong_Type"
-referenced by .../cryptography/hazmat/bindings/_rust.abi3.so
-```
+`pyproject.toml` declares:
 
-The failure occurs while importing `mcp` through its `cryptography`
-dependency. Consequently, `yasin-mcp --help` and `yasin-mcp --version`
-cannot start in this environment even though the package itself is
-correctly installed in editable mode.
+- package version: `0.1.0`
+- `requires-python = ">=3.10"`
+- `mcp>=2,<3`
+- `PyYAML>=6,<7`
 
-This is an environment/ABI dynamic-linking limitation in the native
-Termux dependency stack. It must not be worked around by disabling
-TLS/certificate verification, monkey-patching cryptography, forcing
-incompatible native libraries, or replacing the cryptographic
-implementation with an unverified fallback.
+CI validates Python 3.10, 3.11, and 3.12 with Ruff, Mypy, Bandit, and pytest.
 
-### Recommended workaround: Debian via proot-distro
-
-A full Linux userland inside Termux is a candidate workaround because
-its CPython and native-library layout differs from the native Termux
-runtime. Treat this path as verified only after the commands below
-succeed on the target device.
-
-On the Termux host:
-
-```bash
-pkg update
-pkg install proot-distro git
-proot-distro install debian
-proot-distro login debian
-```
-
-Inside the Debian proot:
-
-```bash
-apt update
-apt install -y python3 python3-venv python3-pip git
-git clone https://github.com/yusi20006-max/Yasin-MCP.git
-cd Yasin-MCP
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-```
-
-Verify the environment before treating it as supported:
-
-```bash
-python -c "import cryptography; print(cryptography.__version__)"
-python -c "from cryptography.hazmat.bindings._rust import exceptions; print('rust OK')"
-python -c "import mcp; print('mcp import OK')"
-python -c "from yasin_mcp.server.cli import main; print('CLI import OK')"
-yasin-mcp --version
-yasin-mcp --help
-```
-
-### Supported runtimes summary
-
-| Environment | Python | Status |
-|-------------|--------|--------|
-| CI / Linux (Ubuntu) | 3.10, 3.11, 3.12 | **Supported** (CI matrix) |
-| General CPython on Linux / macOS / Windows | >=3.10 | Supported subject to dependency wheels |
-| Native Termux (Python 3.14.x aarch64) | 3.14.x | **Unsupported / unverified** — cryptography native ABI failure |
-| Termux + proot-distro Debian | typically distro-provided Python | **Candidate workaround** — verify on device |
-
-Project `requires-python` remains `>=3.10`. The Termux limitation is
-platform/ABI-specific and does not change the declared Python version
-range for normal supported environments.
-
-See also [`docs/RUNBOOK.md`](docs/RUNBOOK.md) for installation and
-failure-mode notes.
+Native Termux Python 3.14.x remains unsupported/unverified because of the documented external `cryptography` ABI limitation. The observed native-Termux failure references the missing `PyLong_Type` symbol; this does not change the normal supported CPython range.
 
 ## Development
 
@@ -247,16 +98,22 @@ bandit -q -r src
 
 | Doc | Purpose |
 |-----|---------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Post-P2 architecture and evidence map |
-| [RUNBOOK.md](docs/RUNBOOK.md) | Install, run, diagnose, failure modes |
-| [RELEASE_READINESS.md](docs/RELEASE_READINESS.md) | Controlled-release assessment (P3) |
-| [STAGE5_PRODUCTION_READINESS.md](docs/STAGE5_PRODUCTION_READINESS.md) | Stage 5 production-readiness assessment |
-| [GOVERNANCE.md](docs/GOVERNANCE.md) | MCP Governance Layer (Stages 3–4) |
-| [CHANGELOG.md](CHANGELOG.md) | Notable changes |
-| [CLIENT_RUNTIME.md](docs/CLIENT_RUNTIME.md) | Stdio client config and smoke checklist |
-| [CAPABILITY_SURFACE.md](docs/CAPABILITY_SURFACE.md) | Surface version semantics |
-| [LIVE_MCP_HARNESS.md](docs/LIVE_MCP_HARNESS.md) | Live runtime evidence class |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture and evidence map |
+| [RUNBOOK.md](docs/RUNBOOK.md) | Install, run, diagnose, and failure modes |
+| [RELEASE_READINESS.md](docs/RELEASE_READINESS.md) | Final roadmap/release-readiness assessment |
+| [STAGE5_PRODUCTION_READINESS.md](docs/STAGE5_PRODUCTION_READINESS.md) | Historical Stage 5 assessment |
+| [GOVERNANCE.md](docs/GOVERNANCE.md) | Governance model |
+| [CLIENT_RUNTIME.md](docs/CLIENT_RUNTIME.md) | Stdio client configuration and smoke checklist |
+| [CAPABILITY_SURFACE.md](docs/CAPABILITY_SURFACE.md) | Capability surface/version semantics |
+| [LIVE_MCP_HARNESS.md](docs/LIVE_MCP_HARNESS.md) | Live runtime evidence |
 | [OPERATIONS_INTEGRATION.md](docs/OPERATIONS_INTEGRATION.md) | Optional Operations gateway |
 | [REGISTRY_INTEGRATION.md](docs/REGISTRY_INTEGRATION.md) | Registry consumer contract |
-| [RELIABILITY.md](docs/RELIABILITY.md) | Retry policy |
+| [RELIABILITY.md](docs/RELIABILITY.md) | Retry/reliability policy |
 | [OBSERVABILITY.md](docs/OBSERVABILITY.md) | Correlation and redaction |
+| [CHANGELOG.md](CHANGELOG.md) | Notable changes |
+
+## Final roadmap rule
+
+Master #96 defines the current five-issue completion roadmap. Stage 15 is its final planned stage. Future maintenance or genuinely new product features may be added later, but omitted roadmap work must not be hidden under a new Stage 16.
+
+Native Termux compatibility is explicitly documented above; this repository does not claim native Termux Python 3.14.x support unless that external dependency/ABI limitation is independently resolved and verified.
