@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import functools
 import inspect
+import os
 from collections.abc import Callable
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from yasin_mcp.approval.constants import APPROVAL_PRESENT_ENV, APPROVAL_TOKEN_KWARG
+from yasin_mcp.approval.store import InMemoryApprovalStore
+from yasin_mcp.approval.types import ApprovalStatus
 from yasin_mcp.errors.errors import PolicyDeniedError, ValidationError
 from yasin_mcp.governance.audit import (
     AuditEvent,
@@ -20,6 +25,7 @@ from yasin_mcp.governance.policy import DefaultConservativePolicy, GovernancePol
 from yasin_mcp.governance.types import (
     GovernanceContext,
     GovernanceDecision,
+    RiskLevel,
     ToolIdentity,
 )
 
@@ -40,18 +46,17 @@ def _decision_message(decision: GovernanceDecision, tool_name: str) -> str:
     return f"Governance decision {decision.value} for tool {tool_name!r}"
 
 
+def _extract_approval_token(kwargs: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    cleaned = dict(kwargs)
+    raw = cleaned.pop(APPROVAL_TOKEN_KWARG, None)
+    if raw is not None:
+        return cleaned, raw if isinstance(raw, str) else str(raw)
+    env_val = os.environ.get(APPROVAL_PRESENT_ENV)
+    return cleaned, env_val if env_val else None
+
+
 class GovernanceGate:
-    """Single enforcement point: optional auth, then policy, audit, execute.
-
-    Ordering (Stages 8–9):
-        Authentication resolution (when ServerConfig attached)
-            → Identity binding
-            → Policy evaluation
-            → ALLOW / DENY / APPROVAL_REQUIRED
-            → Tool execution only on ALLOW
-
-    MCP-facing wrap_tool maps McpError → SDK ToolError (structured JSON).
-    """
+    """Single enforcement point: auth → approval → policy → execute."""
 
     def __init__(
         self,
@@ -59,11 +64,13 @@ class GovernanceGate:
         policy: GovernancePolicy | None = None,
         auditor: AuditRecorder | None = None,
         security_config: ServerConfig | None = None,
+        approval_store: InMemoryApprovalStore | None = None,
     ) -> None:
         self._catalog = catalog
         self._policy: GovernancePolicy = policy or DefaultConservativePolicy()
         self._auditor: AuditRecorder = auditor or LoggingAuditRecorder()
         self._security_config = security_config
+        self._approval_store = approval_store
 
     @property
     def catalog(self) -> ToolRiskCatalog:
@@ -76,6 +83,10 @@ class GovernanceGate:
     @property
     def security_config(self) -> ServerConfig | None:
         return self._security_config
+
+    @property
+    def approval_store(self) -> InMemoryApprovalStore | None:
+        return self._approval_store
 
     def resolve_tool(self, name: str) -> ToolIdentity:
         return self._catalog.resolve(name)
@@ -94,6 +105,61 @@ class GovernanceGate:
             )
         return tool, decision
 
+    def _apply_approval(
+        self,
+        tool_name: str,
+        tool: ToolIdentity,
+        context: GovernanceContext | None,
+        approval_token: str | None,
+    ) -> GovernanceContext | None:
+        needs = tool.risk is RiskLevel.MUTATION or approval_token is not None
+        if not needs:
+            return context
+
+        store = self._approval_store
+        if store is None:
+            if tool.risk is RiskLevel.MUTATION and approval_token:
+                raise ValidationError(
+                    "approval store not configured",
+                    details={"reason_code": "approval_unknown", "tool": tool_name},
+                )
+            return context
+
+        subject: str | None = None
+        if context is not None:
+            subject = context.agent_id
+        result = store.validate_and_consume(
+            approval_token,
+            tool_name=tool_name,
+            context=context,
+            subject_id=subject,
+        )
+
+        extra: dict[str, Any] = dict(context.extra) if context else {}
+        extra["approval_status"] = result.status.value
+        extra["approval_reason"] = result.reason_code
+        if result.grant is not None:
+            extra["approval_id"] = result.grant.approval_id
+
+        if result.status is ApprovalStatus.GRANTED:
+            if context is None:
+                return GovernanceContext(extra=extra)
+            return replace(context, extra=extra)
+
+        if result.status is ApprovalStatus.MISSING:
+            if context is None:
+                return GovernanceContext(extra=extra)
+            return replace(context, extra=extra)
+
+        raise ValidationError(
+            f"approval rejected: {result.reason_code}",
+            details={
+                "reason_code": result.reason_code,
+                "tool": tool_name,
+                "approval_status": result.status.value,
+            },
+        )
+
     def execute(
         self,
         tool_name: str,
@@ -103,6 +169,7 @@ class GovernanceGate:
         kwargs: dict[str, Any] | None = None,
         context: GovernanceContext | None = None,
         presented_secret: str | None = None,
+        approval_token: str | None = None,
     ) -> Any:
         kwargs = dict(kwargs or {})
 
@@ -112,6 +179,10 @@ class GovernanceGate:
         if presented_secret is None:
             presented_secret = extracted_secret
 
+        kwargs, extracted_approval = _extract_approval_token(kwargs)
+        if approval_token is None:
+            approval_token = extracted_approval
+
         bound = resolve_execution_auth(
             self._security_config,
             context=context,
@@ -119,6 +190,9 @@ class GovernanceGate:
         )
         if bound is not None:
             context = bound.governance
+
+        tool = self.resolve_tool(tool_name)
+        context = self._apply_approval(tool_name, tool, context, approval_token)
 
         tool, decision = self.evaluate(tool_name, context)
         safe_context = sanitize_audit_payload(context.as_dict() if context else {})
