@@ -4,6 +4,9 @@
 
 ### Added
 
+- Stage 15 final roadmap-completion assessment and consolidated release-readiness evidence.
+- Final documentation of packaging, supported runtimes, transport evidence, governance/auth/approval guarantees, limitations, and roadmap closure.
+- Stage 14: bounded governed concurrency and deterministic lifecycle-resilience coverage.
 - Stage 13: live ecosystem integration boundary and remote asserted-context propagation (Issue #99).
 - Live Yasin-Agent-compatible Streamable HTTP client evidence for authentication, governance, approval, and audit correlation.
 - `docs/STAGE13_LIVE_ECOSYSTEM_INTEGRATION.md`.
@@ -18,5 +21,6 @@
 
 ### Changed
 
-- Remote transport now validates and binds optional `X-Yasin-Context` as ASSERTED request context before the existing authentication/governance path.
+- README now reflects the final five-issue roadmap state and supported evidence boundaries.
+- Remote transport validates and binds optional `X-Yasin-Context` as ASSERTED request context before the existing authentication/governance path.
 - GovernanceGate maps McpError to SDK ToolError on the MCP wrap path.
