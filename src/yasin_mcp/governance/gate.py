@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import inspect
 import os
+import threading
 from collections.abc import Callable
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -12,7 +13,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from yasin_mcp.approval.constants import APPROVAL_PRESENT_ENV, APPROVAL_TOKEN_KWARG
 from yasin_mcp.approval.store import InMemoryApprovalStore
 from yasin_mcp.approval.types import ApprovalStatus
-from yasin_mcp.errors.errors import PolicyDeniedError, ValidationError
+from yasin_mcp.errors.errors import PolicyDeniedError, RateLimitedError, ValidationError
 from yasin_mcp.governance.audit import (
     AuditEvent,
     AuditEventType,
@@ -71,6 +72,9 @@ class GovernanceGate:
         self._auditor: AuditRecorder = auditor or LoggingAuditRecorder()
         self._security_config = security_config
         self._approval_store = approval_store
+        configured_limit = getattr(security_config, "max_concurrent_requests", 32)
+        self._concurrency_limit = configured_limit
+        self._concurrency_slots = threading.BoundedSemaphore(configured_limit)
 
     @property
     def catalog(self) -> ToolRiskCatalog:
@@ -87,6 +91,10 @@ class GovernanceGate:
     @property
     def approval_store(self) -> InMemoryApprovalStore | None:
         return self._approval_store
+
+    @property
+    def concurrency_limit(self) -> int:
+        return self._concurrency_limit
 
     def resolve_tool(self, name: str) -> ToolIdentity:
         return self._catalog.resolve(name)
@@ -271,10 +279,21 @@ class GovernanceGate:
             from yasin_mcp.errors.client_contract import raise_as_mcp_tool_error
             from yasin_mcp.errors.errors import McpError
 
+            acquired = gate._concurrency_slots.acquire(blocking=False)
+            if not acquired:
+                raise_as_mcp_tool_error(
+                    RateLimitedError(
+                        "MCP concurrency limit reached; retry later",
+                        details={"limit": gate._concurrency_limit, "reason_code": "concurrency_limit"},
+                    )
+                )
             try:
                 return gate.execute(tool_name, fn, args=args, kwargs=kwargs)
             except McpError as exc:
                 raise_as_mcp_tool_error(exc)
                 raise  # pragma: no cover
+            finally:
+                if acquired:
+                    gate._concurrency_slots.release()
 
         return sync_wrapper  # type: ignore[return-value]
