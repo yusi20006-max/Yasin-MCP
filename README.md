@@ -81,7 +81,7 @@ Remote deployments require TLS unless `remote_allow_insecure_http` is explicitly
 
 CI validates Python 3.10, 3.11, and 3.12 with Ruff, Mypy, Bandit, and pytest.
 
-Native Termux Python 3.14.x remains unsupported/unverified because of the documented external `cryptography` ABI limitation. This does not change the normal supported CPython range.
+Native Termux Python 3.14.x remains unsupported/unverified because of the documented external `cryptography` ABI limitation. The observed native-Termux failure references the missing `PyLong_Type` symbol; this does not change the normal supported CPython range.
 
 ## Development
 
