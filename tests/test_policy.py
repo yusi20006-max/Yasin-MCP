@@ -87,12 +87,13 @@ def test_policy_denied_error_includes_name_in_details():
         pytest.fail("expected PolicyDeniedError")
 
 
-# -- Mutation boundary (Phase 1 read-only) ----------------------------------
+# -- Mutation boundary (runtime governance) ----------------------------------
 
 
-def test_mutation_not_allowed_in_phase_1():
-    with pytest.raises(PolicyDeniedError):
-        check_mutation_allowed(is_mutating=True)
+def test_mutation_is_delegated_to_runtime_governance():
+    # Stage 11 intentionally lifts the registration-time mutation ban.
+    # Runtime GovernanceGate remains responsible for authorization.
+    check_mutation_allowed(is_mutating=True)
 
 
 def test_non_mutation_allowed():

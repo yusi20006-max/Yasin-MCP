@@ -36,17 +36,19 @@ def test_forbidden_capability_names_never_register(name: str) -> None:
         descriptor_for(name, "tool", "forbidden")
 
 
-def test_all_future_mutation_classes_are_denied() -> None:
+def test_all_future_mutation_classes_are_delegated_to_runtime_governance() -> None:
     for safety_class in SafetyClass:
-        if safety_class is not SafetyClass.READ_ONLY:
-            if safety_class is SafetyClass.DENY:
-                assert evaluate_policy("safe", safety_class=safety_class).allowed is False
-            else:
-                with pytest.raises(PolicyDeniedError):
-                    evaluate_policy("future", safety_class=safety_class)
+        if safety_class is SafetyClass.READ_ONLY:
+            continue
+        if safety_class is SafetyClass.DENY:
+            assert evaluate_policy("safe", safety_class=safety_class).allowed is False
+            continue
+        decision = evaluate_policy("future", safety_class=safety_class)
+        assert decision.allowed is True
+        assert decision.safety_class is SafetyClass.PROPOSED_MUTATION
 
 
-def test_capability_discovery_matches_registry() -> None:
+def test_capability_discovery_matches_registry():
     registry = CapabilityRegistry()
     registry.register(
         CapabilityContract(
@@ -58,7 +60,7 @@ def test_capability_discovery_matches_registry() -> None:
     assert [item["name"] for item in catalog.as_dict()["capabilities"]] == ["read_docs"]
 
 
-def test_default_runtime_advertises_only_safe_docs_capabilities() -> None:
+def test_default_runtime_advertises_registered_capabilities():
     runtime = ServerRuntime.create()
     names = [item.name for item in runtime.capability_catalog().capabilities]
     assert names
@@ -66,12 +68,15 @@ def test_default_runtime_advertises_only_safe_docs_capabilities() -> None:
         name.startswith("yasin_docs_")
         or name.startswith("yasin_github_")
         or name.startswith("yasin_registry_")
+        or name.startswith("yasin_gov_")
         for name in names
     )
     assert all("exec" not in name and "shell" not in name for name in names)
+    assert "yasin_gov_ping_low_risk" in names
+    assert "yasin_gov_apply_mark" in names
 
 
-def test_evidence_status_is_explicit_for_confirmed_data() -> None:
+def test_evidence_status_is_explicit_for_confirmed_data():
     registry = CapabilityRegistry()
     registry.register(
         CapabilityContract(
@@ -83,7 +88,7 @@ def test_evidence_status_is_explicit_for_confirmed_data() -> None:
     assert registry.all()[0].evidence_status is EvidenceStatus.CONFIRMED
 
 
-def test_no_private_yasin_imports_in_source() -> None:
+def test_no_private_yasin_imports_in_source():
     root = Path(__file__).parents[1] / "src"
     forbidden_prefixes = ("yasin_core", "yasin_agent", "yasin_ai", "yasinhub", "yasin_operations")
     for path in root.rglob("*.py"):

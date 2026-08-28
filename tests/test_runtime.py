@@ -7,6 +7,7 @@ from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.server.runtime import SERVER_NAME, TRANSPORT_STDIO, ServerRuntime
 from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
 from yasin_mcp.tools.github import GITHUB_TOOL_DEFINITIONS
+from yasin_mcp.tools.governance_ref import TOOL_GOV_APPLY_MARK, TOOL_GOV_PING_LOW_RISK
 from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
 
 
@@ -17,6 +18,7 @@ def test_runtime_registers_docs_tools_by_default() -> None:
         {definition.name for definition in DOCS_TOOL_DEFINITIONS}
         | {definition.name for definition in GITHUB_TOOL_DEFINITIONS}
         | {definition.name for definition in REGISTRY_TOOL_DEFINITIONS}
+        | {TOOL_GOV_PING_LOW_RISK, TOOL_GOV_APPLY_MARK}
     )
     catalog_names = {cap.name for cap in runtime.capability_catalog().capabilities}
     assert expected <= catalog_names
@@ -32,6 +34,10 @@ def test_runtime_accepts_dependency_free_registry() -> None:
     registry = CapabilityRegistry()
     runtime = ServerRuntime.create(registry=registry)
     assert runtime.registry is registry
-    assert len(runtime.capability_catalog().capabilities) == (
-        len(DOCS_TOOL_DEFINITIONS) + len(GITHUB_TOOL_DEFINITIONS) + len(REGISTRY_TOOL_DEFINITIONS)
+    expected_count = (
+        len(DOCS_TOOL_DEFINITIONS)
+        + len(GITHUB_TOOL_DEFINITIONS)
+        + len(REGISTRY_TOOL_DEFINITIONS)
+        + 2
     )
+    assert len(runtime.capability_catalog().capabilities) == expected_count

@@ -59,19 +59,19 @@ def test_scope_must_match_descriptor_kind() -> None:
         CapabilityContract(descriptor=descriptor, scope=CapabilityScope.RESOURCE)
 
 
-def test_registry_rejects_duplicates() -> None:
+def test_registry_rejects_duplicates():
     registry = CapabilityRegistry()
     registry.register(contract("alpha"))
     with pytest.raises(ValidationError):
         registry.register(contract("alpha"))
 
 
-def test_registry_get_missing_is_structured_error() -> None:
+def test_registry_get_missing_is_structured_error():
     with pytest.raises(ValidationError):
         CapabilityRegistry().get("missing")
 
 
-def test_discovery_is_deterministic_and_sorted() -> None:
+def test_discovery_is_deterministic_and_sorted():
     registry = CapabilityRegistry()
     registry.register(contract("zeta"))
     registry.register(contract("alpha"))
@@ -85,7 +85,7 @@ def test_discovery_is_deterministic_and_sorted() -> None:
     }
 
 
-def test_capability_contract_serialization_contains_safety_metadata() -> None:
+def test_capability_contract_serialization_contains_safety_metadata():
     item = contract("read_docs")
     payload = item.as_dict()
     assert payload["name"] == "read_docs"
@@ -94,17 +94,17 @@ def test_capability_contract_serialization_contains_safety_metadata() -> None:
     assert payload["evidence_status"] == EvidenceStatus.CONFIRMED.value
 
 
-def test_mutating_contract_cannot_be_constructed() -> None:
-    with pytest.raises(PolicyDeniedError):
-        descriptor_for("update_docs", "tool", "Update docs", is_mutating=True)
+def test_mutating_contract_can_be_constructed_for_runtime_governance():
+    descriptor = descriptor_for("update_docs", "tool", "Update docs", is_mutating=True)
+    assert descriptor.is_mutating is True
 
 
-def test_forbidden_capability_name_is_rejected() -> None:
+def test_forbidden_capability_name_is_rejected():
     with pytest.raises(PolicyDeniedError):
         descriptor_for("execute_tool", "tool", "Unsafe")
 
 
-def test_error_response_from_structured_error() -> None:
+def test_error_response_from_structured_error():
     error = McpError(
         category=__import__(
             "yasin_mcp.errors.errors", fromlist=["ErrorCategory"]
