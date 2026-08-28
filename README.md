@@ -115,3 +115,5 @@ bandit -q -r src
 ## Final roadmap rule
 
 Master #96 defines the current five-issue completion roadmap. Stage 15 is its final planned stage. Future maintenance or genuinely new product features may be added later, but omitted roadmap work must not be hidden under a new Stage 16.
+
+Native Termux compatibility is explicitly documented above; this repository does not claim native Termux Python 3.14.x support unless that external dependency/ABI limitation is independently resolved and verified.
