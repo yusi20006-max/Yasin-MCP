@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 import pytest
@@ -103,6 +104,22 @@ def test_wrap_tool_enforcement() -> None:
     assert calls == []
     gate2, _ = _gate()
     assert gate2.wrap_tool("safe.read", lambda: 1)() == 1
+
+
+def test_wrap_tool_preserves_callable_signature_for_mcp_schema_generation() -> None:
+    gate, _ = _gate()
+
+    def impl(owner: str, repository: str, limit: int = 20) -> dict[str, Any]:
+        return {"owner": owner, "repository": repository, "limit": limit}
+
+    wrapped = gate.wrap_tool("safe.read", impl)
+    signature = inspect.signature(wrapped)
+
+    assert list(signature.parameters) == ["owner", "repository", "limit"]
+    assert signature.parameters["owner"].annotation is str
+    assert signature.parameters["repository"].annotation is str
+    assert signature.parameters["limit"].default == 20
+    assert wrapped(owner="yusi20006-max", repository="Yasin-MCP")["repository"] == "Yasin-MCP"
 
 
 def test_context_redaction_audit_failure() -> None:
