@@ -8,7 +8,7 @@ import os
 import threading
 from collections.abc import Callable
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, get_type_hints
 
 from yasin_mcp.approval.constants import APPROVAL_PRESENT_ENV, APPROVAL_TOKEN_KWARG
 from yasin_mcp.approval.store import InMemoryApprovalStore
@@ -316,6 +316,34 @@ class GovernanceGate:
         # rather than following functools' __wrapped__ chain. Preserve the wrapped
         # callable's signature explicitly so governed tools expose their real
         # arguments (for example owner/repository) instead of *args/**kwargs.
-        setattr(sync_wrapper, "__signature__", inspect.signature(fn))
+        #
+        # The project uses ``from __future__ import annotations``. In that mode
+        # inspect.signature() may expose annotations as strings (e.g. ``'str'``),
+        # which breaks consumers that need concrete Python types for schema
+        # generation. Resolve the annotations before attaching the signature.
+        signature = inspect.signature(fn)
+        try:
+            resolved_annotations = get_type_hints(fn)
+        except (NameError, TypeError):
+            resolved_annotations = {}
+        if resolved_annotations:
+            parameters = [
+                parameter.replace(
+                    annotation=resolved_annotations.get(
+                        name,
+                        parameter.annotation,
+                    )
+                )
+                for name, parameter in signature.parameters.items()
+            ]
+            signature = signature.replace(parameters=parameters)
+            if signature.return_annotation is not inspect.Signature.empty:
+                signature = signature.replace(
+                    return_annotation=resolved_annotations.get(
+                        "return",
+                        signature.return_annotation,
+                    )
+                )
+        setattr(sync_wrapper, "__signature__", signature)
 
         return sync_wrapper  # type: ignore[return-value]
