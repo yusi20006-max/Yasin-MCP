@@ -344,6 +344,6 @@ class GovernanceGate:
                         signature.return_annotation,
                     )
                 )
-        setattr(sync_wrapper, "__signature__", signature)
+        sync_wrapper.__signature__ = signature
 
         return sync_wrapper  # type: ignore[return-value]
