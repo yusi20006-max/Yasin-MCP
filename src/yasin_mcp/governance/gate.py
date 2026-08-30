@@ -312,4 +312,10 @@ class GovernanceGate:
                 if acquired:
                     gate._concurrency_slots.release()
 
+        # MCP's tool schema generator may inspect the concrete wrapper signature
+        # rather than following functools' __wrapped__ chain. Preserve the wrapped
+        # callable's signature explicitly so governed tools expose their real
+        # arguments (for example owner/repository) instead of *args/**kwargs.
+        setattr(sync_wrapper, "__signature__", inspect.signature(fn))
+
         return sync_wrapper  # type: ignore[return-value]
