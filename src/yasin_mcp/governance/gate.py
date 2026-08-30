@@ -8,7 +8,7 @@ import os
 import threading
 from collections.abc import Callable
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, TypeVar, get_type_hints
+from typing import TYPE_CHECKING, Any, TypeVar, cast, get_type_hints
 
 from yasin_mcp.approval.constants import APPROVAL_PRESENT_ENV, APPROVAL_TOKEN_KWARG
 from yasin_mcp.approval.store import InMemoryApprovalStore
@@ -344,6 +344,6 @@ class GovernanceGate:
                         signature.return_annotation,
                     )
                 )
-        setattr(sync_wrapper, "__signature__", signature)
+        cast(Any, sync_wrapper).__signature__ = signature
 
         return sync_wrapper  # type: ignore[return-value]
