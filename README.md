@@ -37,6 +37,7 @@ Yasin-MCP does **not** replace YASIN-DOCS, Yasin-Core, Yasin-Agent, Yasin-AI, Ya
 - Integrations use public APIs, SDKs, contracts, or explicit adapters; no private cross-repository imports are required.
 - Tool execution crosses the centralized `GovernanceGate` for authentication, approval, policy, audit, and bounded-concurrency enforcement.
 - External/untrusted content is represented using explicit evidence/trust boundaries and is not treated as instructions.
+- Yasin-Core v3.4.0 shared observation contracts are spoken through the dependency-free translators in `src/yasin_mcp/compat/` — see [`docs/CORE_CONTRACTS.md`](docs/CORE_CONTRACTS.md). Yasin-MCP owns no lifecycle; YasinHub remains the sole Control Plane.
 
 ## Tool surface
 

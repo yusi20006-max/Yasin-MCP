@@ -4,6 +4,8 @@
 
 ### Added
 
+- Post-Core integration: dependency-free Yasin-Core v3.4.0 shared-contract compatibility (`src/yasin_mcp/compat/`: Core-shaped `HealthReport`/`ServiceStatus`/`ErrorInfo` translators, secret redaction, version pins), `tests/test_core_contracts_compat.py` (11 tests incl. live `yasin_core.sdk` round-trip), and `docs/CORE_CONTRACTS.md`. No new dependency, no behavior change, no lifecycle ownership.
+
 - Stage 15 final roadmap-completion assessment and consolidated release-readiness evidence.
 - Final documentation of packaging, supported runtimes, transport evidence, governance/auth/approval guarantees, limitations, and roadmap closure.
 - Stage 14: bounded governed concurrency and deterministic lifecycle-resilience coverage.
