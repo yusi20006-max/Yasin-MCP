@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from yasin_mcp.capabilities.runflare_registration import RUNFLARE_CAPABILITIES
 from yasin_mcp.capabilities.registry import CapabilityRegistry
+from yasin_mcp.capabilities.runflare_registration import RUNFLARE_CAPABILITIES
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.server.runtime import SERVER_NAME, TRANSPORT_STDIO, ServerRuntime
 from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
