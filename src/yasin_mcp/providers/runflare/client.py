@@ -76,6 +76,4 @@ class RunflareCLI:
         return self._run("start", "-y")
 
     def stop(self) -> CLIResult:
-        raise PermissionError(
-            "runflare_stop requires explicit confirmation outside the MCP server"
-        )
+        raise PermissionError("runflare_stop requires explicit confirmation outside the MCP server")
