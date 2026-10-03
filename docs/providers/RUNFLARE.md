@@ -48,7 +48,7 @@ The provider targets the documented official CLI contract:
 - `runflare start -y`
 - `runflare restart -y`
 
-Runflare documents `-y` as the cached-project/service selection path, which is required for non-interactive execution. citeturn0search0turn0search1turn0search2
+Runflare documents `-y` as the cached-project/service selection path, which is required for non-interactive execution.
 
 Yasin-MCP includes a read-only compatibility probe in
 `yasin_mcp.providers.runflare.compatibility`. It checks `--version`,
