@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from yasin_mcp.capabilities.runflare_registration import RUNFLARE_CAPABILITIES
 from yasin_mcp.capabilities.registry import CapabilityRegistry
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.server.runtime import SERVER_NAME, TRANSPORT_STDIO, ServerRuntime
@@ -9,7 +10,6 @@ from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
 from yasin_mcp.tools.github import GITHUB_TOOL_DEFINITIONS
 from yasin_mcp.tools.governance_ref import TOOL_GOV_APPLY_MARK, TOOL_GOV_PING_LOW_RISK
 from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
-from yasin_mcp.capabilities.runflare_registration import RUNFLARE_CAPABILITIES
 
 
 def test_runtime_registers_docs_tools_by_default() -> None:
