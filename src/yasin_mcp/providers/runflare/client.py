@@ -29,9 +29,8 @@ class RunflareCLI:
             raise ValueError("RUNFLARE_BIN must resolve to the official runflare executable")
         self.timeout = int(os.getenv("RUNFLARE_TIMEOUT_SECONDS", "120"))
         self.max_output = int(os.getenv("RUNFLARE_MAX_OUTPUT", "12000"))
-        self.project_dir = validate_project_dir(
-            project_dir or os.getenv("RUNFLARE_PROJECT_DIR", "")
-        )
+        configured_project_dir = project_dir or os.getenv("RUNFLARE_PROJECT_DIR", "")
+        self.project_dir = validate_project_dir(configured_project_dir)
 
     def _run(self, *args: str) -> CLIResult:
         if any(not isinstance(arg, str) or "\x00" in arg for arg in args):
