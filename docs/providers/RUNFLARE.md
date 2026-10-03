@@ -7,7 +7,11 @@ Runflare is an independent provider unit inside Yasin-MCP. It is not a generic s
 ```text
 MCP client
    ↓
-Yasin-MCP governance
+Yasin-MCP capability registry
+   ↓
+GovernanceGate
+   ↓
+Scoped Runflare tools
    ↓
 Runflare provider
    ↓
@@ -18,6 +22,24 @@ Runflare project
 
 The provider uses authentication already configured for the official CLI. Credentials are never MCP arguments, tool results, repository files, CI secrets, or logs.
 
+## Phase 1 capability registry
+
+Phase 1 registers stable capability contracts before exposing the operational tools. The registry metadata is the source of truth for governance risk and input boundaries.
+
+| Capability | Operation | Risk | Execution policy |
+| --- | --- | --- | --- |
+| `runflare_status` | status | READ_ONLY | autonomous |
+| `runflare_events` | events | READ_ONLY | autonomous |
+| `runflare_logs` | logs | READ_ONLY | autonomous |
+| `runflare_release` | deploy | MUTATION | governance approval |
+| `runflare_start` | start | MUTATION | governance approval |
+| `runflare_restart` | restart | MUTATION | governance approval |
+| `runflare_stop` | stop | MUTATION | explicit confirmation |
+
+The names intentionally use scoped provider identifiers rather than a generic command capability. The provider never registers or exposes `run_command(command: string)`.
+
+Phase 1 does not expose the Runflare subprocess directly as an MCP tool. Subsequent phases bind the approved operations to typed tools, and each binding must go through `GovernanceGate`.
+
 ## Scoped operations
 
 - status/events: non-destructive diagnostics
@@ -25,8 +47,6 @@ The provider uses authentication already configured for the official CLI. Creden
 - deploy: normal release operation when the explicitly configured target satisfies the deployment gate
 - start/restart: operational controls
 - stop: confirmation-gated outside the provider
-
-There is deliberately no `run_command(command: string)` capability.
 
 ## Configuration
 

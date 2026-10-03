@@ -69,6 +69,7 @@ def test_default_runtime_advertises_registered_capabilities():
         or name.startswith("yasin_github_")
         or name.startswith("yasin_registry_")
         or name.startswith("yasin_gov_")
+        or name.startswith("runflare_")
         for name in names
     )
     assert all("exec" not in name and "shell" not in name for name in names)
