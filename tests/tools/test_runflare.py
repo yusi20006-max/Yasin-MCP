@@ -52,7 +52,10 @@ def test_scoped_definitions_are_closed_and_explicit() -> None:
         TOOL_START,
         TOOL_RESTART,
     ]
-    assert all(item.input_schema["additionalProperties"] is False for item in tool_definitions())
+    assert all(
+        item.input_schema["additionalProperties"] is False
+        for item in tool_definitions()
+    )
 
 
 def test_each_tool_calls_one_hardcoded_provider_operation() -> None:
