@@ -31,7 +31,7 @@ Phase 1 registers stable capability contracts before exposing the operational to
 | `runflare_status` | status | READ_ONLY | autonomous |
 | `runflare_events` | events | READ_ONLY | autonomous |
 | `runflare_logs` | logs | READ_ONLY | autonomous |
-| `runflare_release` | deploy | MUTATION | governance approval |
+| `runflare_deploy` | deploy | MUTATION | governance approval |
 | `runflare_start` | start | MUTATION | governance approval |
 | `runflare_restart` | restart | MUTATION | governance approval |
 | `runflare_stop` | stop | MUTATION | explicit confirmation |
