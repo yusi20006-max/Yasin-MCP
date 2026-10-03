@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import os
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
@@ -66,6 +67,7 @@ from yasin_mcp.tools.operations import (
     TOOL_SERVICE_STATUS,
     OperationsToolset,
 )
+from yasin_mcp.tools.runflare import RunflareToolset, TOOL_DEPLOY, TOOL_EVENTS, TOOL_LOGS, TOOL_RESTART, TOOL_START, TOOL_STATUS
 from yasin_mcp.tools.registry import (
     TOOL_GET_PROJECT,
     TOOL_LIST_DEPS,
@@ -97,6 +99,7 @@ class ServerRuntime:
     registry: CapabilityRegistry
     governance: GovernanceGate
     operations_available: bool = False
+    runflare_available: bool = False
 
     @classmethod
     def create(
@@ -135,6 +138,15 @@ class ServerRuntime:
         register_runflare_capabilities(resolved_registry)
         operations_registered = register_operations_tools(resolved_registry, ops_adapter)
         register_governance_ref_tools(resolved_registry)
+
+        runflare = None
+        if os.getenv("RUNFLARE_PROJECT_DIR"):
+            from yasin_mcp.providers.runflare import RunflareCLI
+
+            try:
+                runflare = RunflareCLI()
+            except (OSError, ValueError):
+                runflare = None
 
         risk_catalog = _catalog_from_registry(resolved_registry)
         gate = governance or GovernanceGate(
@@ -188,6 +200,15 @@ class ServerRuntime:
         add_governed(gov_ref.ping_low_risk, TOOL_GOV_PING_LOW_RISK)
         add_governed(gov_ref.apply_mark, TOOL_GOV_APPLY_MARK)
 
+        if runflare is not None:
+            runflare_tools = RunflareToolset(runflare)
+            add_governed(runflare_tools.status, TOOL_STATUS)
+            add_governed(runflare_tools.events, TOOL_EVENTS)
+            add_governed(runflare_tools.logs, TOOL_LOGS)
+            add_governed(runflare_tools.deploy, TOOL_DEPLOY)
+            add_governed(runflare_tools.start, TOOL_START)
+            add_governed(runflare_tools.restart, TOOL_RESTART)
+
         if operations_registered:
             toolset = OperationsToolset(ops_adapter)
             add_governed(toolset.list_services, TOOL_LIST_SERVICES)
@@ -201,6 +222,7 @@ class ServerRuntime:
             resolved_registry,
             gate,
             operations_available=operations_registered,
+            runflare_available=runflare is not None,
         )
 
     def surface_info(self) -> dict[str, object]:
