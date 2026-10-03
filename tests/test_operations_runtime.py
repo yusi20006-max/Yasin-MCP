@@ -14,6 +14,7 @@ from yasin_mcp.tools.github import GITHUB_TOOL_DEFINITIONS
 from yasin_mcp.tools.governance_ref import TOOL_GOV_APPLY_MARK, TOOL_GOV_PING_LOW_RISK
 from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
 
+
 def _available_adapter() -> OperationsAdapter:
     adapter = Mock(spec=OperationsAdapter)
     adapter.available = True
