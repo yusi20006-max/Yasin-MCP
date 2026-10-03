@@ -23,6 +23,7 @@ from yasin_mcp.capabilities.registry import (
     discover_capabilities,
 )
 from yasin_mcp.capabilities.registry_registration import register_registry_tools
+from yasin_mcp.capabilities.runflare_registration import register_runflare_capabilities
 from yasin_mcp.capabilities.surface import surface_metadata
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.governance.audit import AuditRecorder, LoggingAuditRecorder
@@ -131,6 +132,7 @@ class ServerRuntime:
         register_docs_tools(resolved_registry)
         register_github_tools(resolved_registry)
         register_registry_tools(resolved_registry)
+        register_runflare_capabilities(resolved_registry)
         operations_registered = register_operations_tools(resolved_registry, ops_adapter)
         register_governance_ref_tools(resolved_registry)
 
