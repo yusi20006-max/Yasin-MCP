@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
@@ -67,7 +67,15 @@ from yasin_mcp.tools.operations import (
     TOOL_SERVICE_STATUS,
     OperationsToolset,
 )
-from yasin_mcp.tools.runflare import RunflareToolset, TOOL_DEPLOY, TOOL_EVENTS, TOOL_LOGS, TOOL_RESTART, TOOL_START, TOOL_STATUS
+from yasin_mcp.tools.runflare import (
+    TOOL_DEPLOY,
+    TOOL_EVENTS,
+    TOOL_LOGS,
+    TOOL_RESTART,
+    TOOL_START,
+    TOOL_STATUS,
+    RunflareToolset,
+)
 from yasin_mcp.tools.registry import (
     TOOL_GET_PROJECT,
     TOOL_LIST_DEPS,
@@ -115,7 +123,9 @@ class ServerRuntime:
     ) -> ServerRuntime:
         resolved_config = config if config is not None else ServerConfig()
         resolved_registry = registry if registry is not None else CapabilityRegistry()
-        ops_adapter = operations_adapter if operations_adapter is not None else OperationsAdapter()
+        ops_adapter = (
+            operations_adapter if operations_adapter is not None else OperationsAdapter()
+        )
         docs = docs_adapter
         if docs is None:
             docs = YasinDocsAdapter(
