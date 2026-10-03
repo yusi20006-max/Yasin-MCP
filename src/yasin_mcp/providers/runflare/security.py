@@ -16,6 +16,8 @@ _SECRET_PATTERNS = (
 
 
 def redact(text: str, limit: int) -> str:
+    if limit <= 0:
+        raise ValueError("Output limit must be positive")
     value = text
     for pattern in _SECRET_PATTERNS:
         value = pattern.sub(r"\1[REDACTED]", value)
