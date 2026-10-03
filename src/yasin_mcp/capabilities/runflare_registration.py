@@ -71,7 +71,10 @@ RUNFLARE_CAPABILITY_DEFINITIONS: tuple[RunflareCapabilityDefinition, ...] = (
     RunflareCapabilityDefinition(
         name="runflare_stop",
         operation="stop",
-        description="Stop the explicitly configured Runflare project target; confirmation is required.",
+        description=(
+            "Stop the explicitly configured Runflare project target; "
+            "confirmation is required."
+        ),
         risk=RiskLevel.MUTATION,
         input_schema={"type": "object", "properties": {}, "additionalProperties": False},
         is_mutating=True,
