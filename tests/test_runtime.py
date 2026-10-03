@@ -9,6 +9,7 @@ from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
 from yasin_mcp.tools.github import GITHUB_TOOL_DEFINITIONS
 from yasin_mcp.tools.governance_ref import TOOL_GOV_APPLY_MARK, TOOL_GOV_PING_LOW_RISK
 from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
+from yasin_mcp.capabilities.runflare_registration import RUNFLARE_CAPABILITIES
 
 
 def test_runtime_registers_docs_tools_by_default() -> None:
@@ -38,6 +39,7 @@ def test_runtime_accepts_dependency_free_registry() -> None:
         len(DOCS_TOOL_DEFINITIONS)
         + len(GITHUB_TOOL_DEFINITIONS)
         + len(REGISTRY_TOOL_DEFINITIONS)
+        + len(RUNFLARE_CAPABILITIES)
         + 2
     )
     assert len(runtime.capability_catalog().capabilities) == expected_count
