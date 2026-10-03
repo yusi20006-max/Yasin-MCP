@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from yasin_mcp.capabilities.registry import CapabilityRegistry
-from yasin_mcp.capabilities.runflare_registration import RUNFLARE_CAPABILITIES
+from yasin_mcp.capabilities.runflare_registration import RUNFLARE_CAPABILITY_DEFINITIONS
 from yasin_mcp.config.config import ServerConfig
 from yasin_mcp.server.runtime import SERVER_NAME, TRANSPORT_STDIO, ServerRuntime
 from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
@@ -39,7 +39,7 @@ def test_runtime_accepts_dependency_free_registry() -> None:
         len(DOCS_TOOL_DEFINITIONS)
         + len(GITHUB_TOOL_DEFINITIONS)
         + len(REGISTRY_TOOL_DEFINITIONS)
-        + len(RUNFLARE_CAPABILITIES)
+        + len(RUNFLARE_CAPABILITY_DEFINITIONS)
         + 2
     )
     assert len(runtime.capability_catalog().capabilities) == expected_count
