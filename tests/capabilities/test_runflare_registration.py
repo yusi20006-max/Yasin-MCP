@@ -15,7 +15,7 @@ def test_registers_all_scoped_runflare_capabilities() -> None:
         "runflare_status",
         "runflare_events",
         "runflare_logs",
-        "runflare_release",
+        "runflare_deploy",
         "runflare_start",
         "runflare_restart",
         "runflare_stop",
