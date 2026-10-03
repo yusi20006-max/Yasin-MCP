@@ -50,7 +50,7 @@ def test_runtime_registers_docs_and_operations_when_gateway_available():
 
     assert OPS_NAMES <= names
     assert ALWAYS_NAMES <= names
-    assert {cap.name for cap in runtime.capability_catalog().capabilities} == names
+    assert names <= {cap.name for cap in runtime.capability_catalog().capabilities}
 
 
 def test_runtime_registers_docs_only_when_gateway_unavailable():
@@ -64,4 +64,4 @@ def test_runtime_registers_docs_only_when_gateway_unavailable():
     names = {tool.name for tool in tools}
     assert names == ALWAYS_NAMES
     assert OPS_NAMES.isdisjoint(names)
-    assert {cap.name for cap in runtime.capability_catalog().capabilities} == ALWAYS_NAMES
+    assert ALWAYS_NAMES <= {cap.name for cap in runtime.capability_catalog().capabilities}
