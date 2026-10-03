@@ -10,8 +10,8 @@ import os
 
 import pytest
 
-from yasin_mcp.providers.runflare.compatibility import probe_compatibility
 from yasin_mcp.providers.runflare.client import RunflareCLI
+from yasin_mcp.providers.runflare.compatibility import probe_compatibility
 
 
 @pytest.mark.skipif(
