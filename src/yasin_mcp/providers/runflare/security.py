@@ -1,4 +1,9 @@
-"""Runflare provider input validation and output sanitization."""
+"""Runflare provider security boundaries and output sanitization.
+
+Credentials stay in the official Runflare CLI authentication mechanism.
+This module validates the project filesystem boundary and sanitizes CLI
+output before it can cross the MCP boundary.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ _SECRET_PATTERNS = (
     re.compile(r"(?i)(token\s*[:=]\s*)[^\s,;]+"),
     re.compile(r"(?i)(password\s*[:=]\s*)[^\s,;]+"),
     re.compile(r"(?i)(secret\s*[:=]\s*)[^\s,;]+"),
+    re.compile(r"(?i)(x-api-key\s*[:=]\s*)[^\s,;]+"),
 )
 
 
@@ -25,16 +31,19 @@ def redact(text: str, limit: int) -> str:
 
 
 def validate_project_dir(project_dir: str) -> Path:
-    if not project_dir:
-        raise ValueError("Runflare project directory is not configured")
+    if not project_dir or "\x00" in project_dir:
+        raise ValueError("Invalid Runflare project directory")
     path = Path(project_dir).expanduser().resolve()
     if not path.is_dir():
         raise ValueError("Runflare project directory does not exist")
     root = os.getenv("RUNFLARE_ALLOWED_PROJECT_ROOT")
-    if root:
-        allowed = Path(root).expanduser().resolve()
-        try:
-            path.relative_to(allowed)
-        except ValueError as exc:
-            raise ValueError("Runflare project directory is outside the allowed root") from exc
+    if not root or "\x00" in root:
+        raise ValueError("Runflare allowed project root is not configured safely")
+    allowed = Path(root).expanduser().resolve()
+    if not allowed.is_dir():
+        raise ValueError("Runflare allowed project root does not exist")
+    try:
+        path.relative_to(allowed)
+    except ValueError as exc:
+        raise ValueError("Runflare project directory is outside the allowed root") from exc
     return path
