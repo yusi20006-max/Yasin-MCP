@@ -67,6 +67,12 @@ from yasin_mcp.tools.operations import (
     TOOL_SERVICE_STATUS,
     OperationsToolset,
 )
+from yasin_mcp.tools.registry import (
+    TOOL_GET_PROJECT,
+    TOOL_LIST_DEPS,
+    TOOL_LIST_PROJECTS,
+    RegistryToolset,
+)
 from yasin_mcp.tools.runflare import (
     TOOL_DEPLOY,
     TOOL_EVENTS,
@@ -75,12 +81,6 @@ from yasin_mcp.tools.runflare import (
     TOOL_START,
     TOOL_STATUS,
     RunflareToolset,
-)
-from yasin_mcp.tools.registry import (
-    TOOL_GET_PROJECT,
-    TOOL_LIST_DEPS,
-    TOOL_LIST_PROJECTS,
-    RegistryToolset,
 )
 from yasin_mcp.version import CAPABILITY_SURFACE_VERSION, __version__
 
