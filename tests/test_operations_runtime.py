@@ -11,6 +11,7 @@ from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
 from yasin_mcp.tools.github import GITHUB_TOOL_DEFINITIONS
 from yasin_mcp.tools.governance_ref import TOOL_GOV_APPLY_MARK, TOOL_GOV_PING_LOW_RISK
 from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
+from yasin_mcp.tools.runflare import TOOL_DEFINITIONS as RUNFLARE_TOOL_DEFINITIONS
 
 
 def _available_adapter() -> OperationsAdapter:
@@ -22,8 +23,9 @@ def _available_adapter() -> OperationsAdapter:
 DOCS_NAMES = {definition.name for definition in DOCS_TOOL_DEFINITIONS}
 GH_NAMES = {definition.name for definition in GITHUB_TOOL_DEFINITIONS}
 REG_NAMES = {definition.name for definition in REGISTRY_TOOL_DEFINITIONS}
+RUNFLARE_NAMES = {definition.name for definition in RUNFLARE_TOOL_DEFINITIONS}
 GOV_NAMES = {TOOL_GOV_PING_LOW_RISK, TOOL_GOV_APPLY_MARK}
-ALWAYS_NAMES = DOCS_NAMES | GH_NAMES | REG_NAMES | GOV_NAMES
+ALWAYS_NAMES = DOCS_NAMES | GH_NAMES | REG_NAMES | GOV_NAMES | RUNFLARE_NAMES
 OPS_NAMES = {
     "yasin_operations_list_services",
     "yasin_operations_service_status",
