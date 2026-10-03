@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+from yasin_mcp.tools.runflare import TOOL_DEFINITIONS as RUNFLARE_TOOL_DEFINITIONS
+
 from yasin_mcp.adapters.operations import OperationsAdapter
 from yasin_mcp.capabilities.registry import CapabilityRegistry
 from yasin_mcp.server.runtime import ServerRuntime
@@ -11,8 +13,6 @@ from yasin_mcp.tools.docs import DOCS_TOOL_DEFINITIONS
 from yasin_mcp.tools.github import GITHUB_TOOL_DEFINITIONS
 from yasin_mcp.tools.governance_ref import TOOL_GOV_APPLY_MARK, TOOL_GOV_PING_LOW_RISK
 from yasin_mcp.tools.registry import REGISTRY_TOOL_DEFINITIONS
-from yasin_mcp.tools.runflare import TOOL_DEFINITIONS as RUNFLARE_TOOL_DEFINITIONS
-
 
 def _available_adapter() -> OperationsAdapter:
     adapter = Mock(spec=OperationsAdapter)
