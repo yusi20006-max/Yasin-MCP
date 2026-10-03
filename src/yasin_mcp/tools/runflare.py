@@ -21,7 +21,7 @@ _EMPTY_SCHEMA: Mapping[str, Any] = {
     "additionalProperties": False,
 }
 
-RUNFLARE_TOOL_DEFINITIONS = (
+RUNFLARE_TOOL_DEFINITIONS: tuple[dict[str, Any], ...] = (
     {
         "name": TOOL_STATUS,
         "description": "Read Runflare project status.",
