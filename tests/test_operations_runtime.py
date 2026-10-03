@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-from yasin_mcp.tools.runflare import TOOL_DEFINITIONS as RUNFLARE_TOOL_DEFINITIONS
-
 from yasin_mcp.adapters.operations import OperationsAdapter
 from yasin_mcp.capabilities.registry import CapabilityRegistry
 from yasin_mcp.server.runtime import ServerRuntime
@@ -24,7 +22,7 @@ def _available_adapter() -> OperationsAdapter:
 DOCS_NAMES = {definition.name for definition in DOCS_TOOL_DEFINITIONS}
 GH_NAMES = {definition.name for definition in GITHUB_TOOL_DEFINITIONS}
 REG_NAMES = {definition.name for definition in REGISTRY_TOOL_DEFINITIONS}
-RUNFLARE_NAMES = {definition.name for definition in RUNFLARE_TOOL_DEFINITIONS}
+RUNFLARE_NAMES = {"runflare_status", "runflare_events", "runflare_logs", "runflare_deploy", "runflare_start", "runflare_restart", "runflare_stop"}
 GOV_NAMES = {TOOL_GOV_PING_LOW_RISK, TOOL_GOV_APPLY_MARK}
 ALWAYS_NAMES = DOCS_NAMES | GH_NAMES | REG_NAMES | GOV_NAMES | RUNFLARE_NAMES
 OPS_NAMES = {
