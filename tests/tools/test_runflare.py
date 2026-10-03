@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from yasin_mcp.providers.runflare.client import CLIResult\n\nfrom yasin_mcp.tools.runflare import (
+from yasin_mcp.providers.runflare.client import CLIResult
+from yasin_mcp.tools.runflare import (
     TOOL_DEPLOY,
     TOOL_EVENTS,
     TOOL_LOGS,
@@ -10,7 +11,6 @@ from yasin_mcp.providers.runflare.client import CLIResult\n\nfrom yasin_mcp.tool
     RunflareToolset,
     tool_definitions,
 )
-from yasin_mcp.providers.runflare.client import CLIResult
 
 
 @dataclass
