@@ -1,106 +1,253 @@
-"""Scoped MCP tools for the Runflare provider with explicit operations only."""
+"""Runnable MCP server runtime boundary."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Final, Literal
 
-from yasin_mcp.providers.runflare.client import CLIResult, RunflareCLI
+from mcp.server import MCPServer
 
-TOOL_STATUS = "runflare_status"
-TOOL_EVENTS = "runflare_events"
-TOOL_LOGS = "runflare_logs"
-TOOL_DEPLOY = "runflare_deploy"
-TOOL_START = "runflare_start"
-TOOL_RESTART = "runflare_restart"
-
-_EMPTY_SCHEMA: Mapping[str, Any] = {
-    "type": "object",
-    "properties": {},
-    "additionalProperties": False,
-}
-
-RUNFLARE_TOOL_DEFINITIONS: tuple[dict[str, Any], ...] = (
-    {
-        "name": TOOL_STATUS,
-        "description": "Read Runflare project status.",
-        "input_schema": _EMPTY_SCHEMA,
-    },
-    {
-        "name": TOOL_EVENTS,
-        "description": "Read bounded Runflare project events.",
-        "input_schema": _EMPTY_SCHEMA,
-    },
-    {
-        "name": TOOL_LOGS,
-        "description": "Read bounded Runflare project logs.",
-        "input_schema": _EMPTY_SCHEMA,
-    },
-    {
-        "name": TOOL_DEPLOY,
-        "description": "Deploy the configured Runflare project.",
-        "input_schema": _EMPTY_SCHEMA,
-    },
-    {
-        "name": TOOL_START,
-        "description": "Start the configured Runflare project.",
-        "input_schema": _EMPTY_SCHEMA,
-    },
-    {
-        "name": TOOL_RESTART,
-        "description": "Restart the configured Runflare project.",
-        "input_schema": _EMPTY_SCHEMA,
-    },
+from yasin_mcp.adapters.docs import YasinDocsAdapter
+from yasin_mcp.adapters.github import GitHubAdapter
+from yasin_mcp.adapters.operations import OperationsAdapter
+from yasin_mcp.adapters.project_registry import ProjectRegistryAdapter
+from yasin_mcp.approval import InMemoryApprovalStore
+from yasin_mcp.capabilities.docs_registration import register_docs_tools
+from yasin_mcp.capabilities.github_registration import register_github_tools
+from yasin_mcp.capabilities.governance_ref_registration import register_governance_ref_tools
+from yasin_mcp.capabilities.operations_registration import register_operations_tools
+from yasin_mcp.capabilities.registry import (
+    CapabilityCatalog,
+    CapabilityRegistry,
+    discover_capabilities,
 )
+from yasin_mcp.capabilities.registry_registration import register_registry_tools
+from yasin_mcp.capabilities.runflare_registration import register_runflare_capabilities
+from yasin_mcp.capabilities.surface import surface_metadata
+from yasin_mcp.config.config import ServerConfig
+from yasin_mcp.governance.audit import AuditRecorder, LoggingAuditRecorder
+from yasin_mcp.governance.catalog import ToolRiskCatalog
+from yasin_mcp.governance.gate import GovernanceGate
+from yasin_mcp.governance.policy import DefaultConservativePolicy, GovernancePolicy
+from yasin_mcp.governance.types import RiskLevel
+from yasin_mcp.tools.docs import (
+    TOOL_GET_ADR,
+    TOOL_GET_DOC,
+    TOOL_GET_PROJECT_ARCHITECTURE,
+    TOOL_LIST_ADRS,
+    TOOL_LIST_ARCHITECTURE,
+    TOOL_LIST_DOCS,
+    TOOL_SEARCH_DOCS,
+    DocsToolset,
+)
+from yasin_mcp.tools.github import (
+    TOOL_COMMIT_STATUS,
+    TOOL_GET_ISSUE,
+    TOOL_GET_PR,
+    TOOL_GET_REPO,
+    TOOL_LIST_BRANCHES,
+    TOOL_LIST_COMMITS,
+    TOOL_LIST_ISSUES,
+    TOOL_LIST_PRS,
+    TOOL_LIST_RELEASES,
+    TOOL_LIST_WORKFLOWS,
+    GitHubToolset,
+)
+from yasin_mcp.tools.governance_ref import (
+    TOOL_GOV_APPLY_MARK,
+    TOOL_GOV_PING_LOW_RISK,
+    GovernanceReferenceToolset,
+)
+from yasin_mcp.tools.operations import (
+    TOOL_DIAGNOSTICS,
+    TOOL_HEALTH,
+    TOOL_LIST_SERVICES,
+    TOOL_SERVICE_STATUS,
+    OperationsToolset,
+)
+from yasin_mcp.tools.registry import (
+    TOOL_GET_PROJECT,
+    TOOL_LIST_DEPS,
+    TOOL_LIST_PROJECTS,
+    RegistryToolset,
+)
+from yasin_mcp.tools.runflare import (
+    TOOL_DEPLOY,
+    TOOL_EVENTS,
+    TOOL_LOGS,
+    TOOL_RESTART,
+    TOOL_START,
+    TOOL_STATUS,
+    RunflareToolset,
+)
+from yasin_mcp.version import CAPABILITY_SURFACE_VERSION, __version__
+
+SERVER_NAME: Final[str] = "Yasin-MCP"
+TRANSPORT_STDIO: Final[Literal["stdio"]] = "stdio"
 
 
-def _result(result: CLIResult) -> dict[str, Any]:
-    return {
-        "returncode": result.returncode,
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-    }
-
-
-class RunflareToolset:
-    """Bind each MCP tool to exactly one hardcoded provider operation."""
-
-    def __init__(self, cli: RunflareCLI) -> None:
-        self._cli = cli
-
-    def status(self) -> dict[str, Any]:
-        return _result(self._cli.status())
-
-    def events(self) -> dict[str, Any]:
-        return _result(self._cli.events())
-
-    def logs(self) -> dict[str, Any]:
-        return _result(self._cli.logs())
-
-    def deploy(self) -> dict[str, Any]:
-        return _result(self._cli.deploy())
-
-    def start(self) -> dict[str, Any]:
-        return _result(self._cli.start())
-
-    def restart(self) -> dict[str, Any]:
-        return _result(self._cli.restart())
+def _catalog_from_registry(registry: CapabilityRegistry) -> ToolRiskCatalog:
+    catalog = ToolRiskCatalog()
+    for contract in registry.all():
+        risk = getattr(contract, "risk", RiskLevel.READ_ONLY)
+        if not isinstance(risk, RiskLevel):
+            risk = RiskLevel.READ_ONLY
+        catalog.register(contract.name, risk)
+    return catalog
 
 
 @dataclass(frozen=True)
-class RunflareToolDefinition:
-    name: str
-    description: str
-    input_schema: Mapping[str, Any]
+class ServerRuntime:
+    """Owns server construction, capability registration, governance, and transport."""
 
+    config: ServerConfig
+    server: MCPServer[object]
+    registry: CapabilityRegistry
+    governance: GovernanceGate
+    operations_available: bool = False
+    runflare_available: bool = False
 
-def tool_definitions() -> tuple[RunflareToolDefinition, ...]:
-    return tuple(
-        RunflareToolDefinition(
-            name=item["name"],
-            description=item["description"],
-            input_schema=item["input_schema"],
+    @classmethod
+    def create(
+        cls,
+        config: ServerConfig | None = None,
+        registry: CapabilityRegistry | None = None,
+        operations_adapter: OperationsAdapter | None = None,
+        docs_adapter: YasinDocsAdapter | None = None,
+        github_adapter: GitHubAdapter | None = None,
+        policy: GovernancePolicy | None = None,
+        auditor: AuditRecorder | None = None,
+        governance: GovernanceGate | None = None,
+    ) -> ServerRuntime:
+        resolved_config = config if config is not None else ServerConfig()
+        resolved_registry = registry if registry is not None else CapabilityRegistry()
+        ops_adapter = operations_adapter if operations_adapter is not None else OperationsAdapter()
+        docs = docs_adapter
+        if docs is None:
+            docs = YasinDocsAdapter(
+                token=resolved_config.github_token,
+                timeout_seconds=resolved_config.request_timeout_seconds,
+            )
+
+        server = MCPServer(
+            SERVER_NAME,
+            description=(
+                "AI/Agent-facing access layer for the Yasin ecosystem "
+                f"(capability surface {CAPABILITY_SURFACE_VERSION})"
+            ),
+            version=__version__,
         )
-        for item in RUNFLARE_TOOL_DEFINITIONS
-    )
+
+        register_docs_tools(resolved_registry)
+        register_github_tools(resolved_registry)
+        register_registry_tools(resolved_registry)
+        register_runflare_capabilities(resolved_registry)
+        operations_registered = register_operations_tools(resolved_registry, ops_adapter)
+        register_governance_ref_tools(resolved_registry)
+
+        runflare = None
+        if os.getenv("RUNFLARE_PROJECT_DIR"):
+            from yasin_mcp.providers.runflare import RunflareCLI
+
+            try:
+                runflare = RunflareCLI()
+            except (OSError, ValueError):
+                runflare = None
+
+        risk_catalog = _catalog_from_registry(resolved_registry)
+        gate = governance or GovernanceGate(
+            risk_catalog,
+            policy=policy or DefaultConservativePolicy(),
+            auditor=auditor or LoggingAuditRecorder(),
+            security_config=resolved_config,
+            approval_store=InMemoryApprovalStore(),
+        )
+        for name in risk_catalog.known_names():
+            if name not in gate.catalog:
+                gate.catalog.register(name, risk_catalog.resolve(name).risk)
+
+        def add_governed(fn: Callable[..., Any], name: str) -> None:
+            server.add_tool(gate.wrap_tool(name, fn), name=name, structured_output=True)
+
+        docs_tools = DocsToolset(docs)
+        add_governed(docs_tools.list_documents, TOOL_LIST_DOCS)
+        add_governed(docs_tools.get_document, TOOL_GET_DOC)
+        add_governed(docs_tools.search, TOOL_SEARCH_DOCS)
+        add_governed(docs_tools.list_adrs, TOOL_LIST_ADRS)
+        add_governed(docs_tools.get_adr, TOOL_GET_ADR)
+        add_governed(docs_tools.list_architecture, TOOL_LIST_ARCHITECTURE)
+        add_governed(docs_tools.get_project_architecture, TOOL_GET_PROJECT_ARCHITECTURE)
+
+        gh = github_adapter
+        if gh is None:
+            gh = GitHubAdapter(
+                token=resolved_config.github_token,
+                timeout_seconds=resolved_config.request_timeout_seconds,
+            )
+        gh_tools = GitHubToolset(gh)
+        add_governed(gh_tools.get_repository, TOOL_GET_REPO)
+        add_governed(gh_tools.list_issues, TOOL_LIST_ISSUES)
+        add_governed(gh_tools.get_issue, TOOL_GET_ISSUE)
+        add_governed(gh_tools.list_pull_requests, TOOL_LIST_PRS)
+        add_governed(gh_tools.get_pull_request, TOOL_GET_PR)
+        add_governed(gh_tools.list_commits, TOOL_LIST_COMMITS)
+        add_governed(gh_tools.get_commit_status, TOOL_COMMIT_STATUS)
+        add_governed(gh_tools.list_workflow_runs, TOOL_LIST_WORKFLOWS)
+        add_governed(gh_tools.list_branches, TOOL_LIST_BRANCHES)
+        add_governed(gh_tools.list_releases, TOOL_LIST_RELEASES)
+
+        reg = ProjectRegistryAdapter(docs)
+        reg_tools = RegistryToolset(reg)
+        add_governed(reg_tools.list_projects, TOOL_LIST_PROJECTS)
+        add_governed(reg_tools.get_project, TOOL_GET_PROJECT)
+        add_governed(reg_tools.list_dependencies, TOOL_LIST_DEPS)
+
+        gov_ref = GovernanceReferenceToolset()
+        add_governed(gov_ref.ping_low_risk, TOOL_GOV_PING_LOW_RISK)
+        add_governed(gov_ref.apply_mark, TOOL_GOV_APPLY_MARK)
+
+        if runflare is not None:
+            runflare_tools = RunflareToolset(runflare)
+            add_governed(runflare_tools.status, TOOL_STATUS)
+            add_governed(runflare_tools.events, TOOL_EVENTS)
+            add_governed(runflare_tools.logs, TOOL_LOGS)
+            add_governed(runflare_tools.deploy, TOOL_DEPLOY)
+            add_governed(runflare_tools.start, TOOL_START)
+            add_governed(runflare_tools.restart, TOOL_RESTART)
+
+        if operations_registered:
+            toolset = OperationsToolset(ops_adapter)
+            add_governed(toolset.list_services, TOOL_LIST_SERVICES)
+            add_governed(toolset.service_status, TOOL_SERVICE_STATUS)
+            add_governed(toolset.health, TOOL_HEALTH)
+            add_governed(toolset.diagnostics, TOOL_DIAGNOSTICS)
+
+        return cls(
+            resolved_config,
+            server,
+            resolved_registry,
+            gate,
+            operations_available=operations_registered,
+            runflare_available=runflare is not None,
+        )
+
+    def surface_info(self) -> dict[str, object]:
+        from yasin_mcp.auth import authentication_boundary_summary
+        from yasin_mcp.contracts.integration_context import integration_contract_summary
+
+        meta = surface_metadata()
+        meta["operations_available"] = self.operations_available
+        meta["governance"] = "centralized"
+        meta["runtime_version"] = __version__
+        meta["integration"] = integration_contract_summary()
+        meta["authentication"] = authentication_boundary_summary()
+        meta["require_authentication"] = self.config.require_authentication
+        return meta
+
+    def capability_catalog(self) -> CapabilityCatalog:
+        return discover_capabilities(self.registry)
+
+    def run_stdio(self) -> None:
+        self.server.run(transport=TRANSPORT_STDIO)
