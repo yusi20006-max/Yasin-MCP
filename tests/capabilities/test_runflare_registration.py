@@ -30,7 +30,7 @@ def test_runflare_mutations_are_governed_as_mutation_risk() -> None:
     assert risks["runflare_status"] is RiskLevel.READ_ONLY
     assert risks["runflare_events"] is RiskLevel.READ_ONLY
     assert risks["runflare_logs"] is RiskLevel.READ_ONLY
-    assert risks["runflare_release"] is RiskLevel.MUTATION
+    assert risks["runflare_deploy"] is RiskLevel.MUTATION
     assert risks["runflare_start"] is RiskLevel.MUTATION
     assert risks["runflare_restart"] is RiskLevel.MUTATION
     assert risks["runflare_stop"] is RiskLevel.MUTATION
