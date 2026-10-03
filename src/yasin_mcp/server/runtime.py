@@ -1,4 +1,4 @@
-"""Runnable MCP server runtime boundary."""
+"""Runnable MCP server runtime boundary with centralized governance."""
 
 from __future__ import annotations
 
