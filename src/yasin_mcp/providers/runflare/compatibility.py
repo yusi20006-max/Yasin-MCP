@@ -51,9 +51,7 @@ def probe_compatibility(binary: str | None = None) -> CompatibilityReport:
     version = _probe(executable, "--version")
     help_text = _probe(executable, "--help")
 
-    missing_commands = tuple(
-        command for command in EXPECTED_COMMANDS if command not in help_text
-    )
+    missing_commands = tuple(command for command in EXPECTED_COMMANDS if command not in help_text)
     missing_flags: list[str] = []
     for command, flags in EXPECTED_FLAGS.items():
         command_help = _probe(executable, command, "--help")
