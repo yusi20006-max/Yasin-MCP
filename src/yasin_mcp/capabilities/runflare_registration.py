@@ -22,34 +22,41 @@ class RunflareCapabilityDefinition:
     is_mutating: bool = False
 
 
+_EMPTY_INPUT_SCHEMA = {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": False,
+}
+
+
 RUNFLARE_CAPABILITY_DEFINITIONS: tuple[RunflareCapabilityDefinition, ...] = (
     RunflareCapabilityDefinition(
         name="runflare_status",
         operation="status",
         description="Read the configured Runflare project's current status/diagnostics.",
         risk=RiskLevel.READ_ONLY,
-        input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        input_schema=_EMPTY_INPUT_SCHEMA,
     ),
     RunflareCapabilityDefinition(
         name="runflare_events",
         operation="events",
         description="Read bounded, sanitized Runflare project events.",
         risk=RiskLevel.READ_ONLY,
-        input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        input_schema=_EMPTY_INPUT_SCHEMA,
     ),
     RunflareCapabilityDefinition(
         name="runflare_logs",
         operation="logs",
         description="Read bounded, sanitized Runflare project logs.",
         risk=RiskLevel.READ_ONLY,
-        input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        input_schema=_EMPTY_INPUT_SCHEMA,
     ),
     RunflareCapabilityDefinition(
         name="runflare_release",
         operation="deploy",
         description="Deploy the explicitly configured Runflare project target.",
         risk=RiskLevel.MUTATION,
-        input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        input_schema=_EMPTY_INPUT_SCHEMA,
         is_mutating=True,
     ),
     RunflareCapabilityDefinition(
@@ -57,7 +64,7 @@ RUNFLARE_CAPABILITY_DEFINITIONS: tuple[RunflareCapabilityDefinition, ...] = (
         operation="start",
         description="Start the explicitly configured Runflare project target.",
         risk=RiskLevel.MUTATION,
-        input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        input_schema=_EMPTY_INPUT_SCHEMA,
         is_mutating=True,
     ),
     RunflareCapabilityDefinition(
@@ -65,7 +72,7 @@ RUNFLARE_CAPABILITY_DEFINITIONS: tuple[RunflareCapabilityDefinition, ...] = (
         operation="restart",
         description="Restart the explicitly configured Runflare project target.",
         risk=RiskLevel.MUTATION,
-        input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        input_schema=_EMPTY_INPUT_SCHEMA,
         is_mutating=True,
     ),
     RunflareCapabilityDefinition(
@@ -76,7 +83,7 @@ RUNFLARE_CAPABILITY_DEFINITIONS: tuple[RunflareCapabilityDefinition, ...] = (
             "confirmation is required."
         ),
         risk=RiskLevel.MUTATION,
-        input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        input_schema=_EMPTY_INPUT_SCHEMA,
         is_mutating=True,
     ),
 )
