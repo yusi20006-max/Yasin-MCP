@@ -112,9 +112,7 @@ class ServerRuntime:
     ) -> ServerRuntime:
         resolved_config = config if config is not None else ServerConfig()
         resolved_registry = registry if registry is not None else CapabilityRegistry()
-        ops_adapter = (
-            operations_adapter if operations_adapter is not None else OperationsAdapter()
-        )
+        ops_adapter = operations_adapter if operations_adapter is not None else OperationsAdapter()
         docs = docs_adapter
         if docs is None:
             docs = YasinDocsAdapter(
