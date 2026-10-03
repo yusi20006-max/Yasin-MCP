@@ -67,7 +67,7 @@ from yasin_mcp.tools.operations import (
     TOOL_SERVICE_STATUS,
     OperationsToolset,
 )
-from yasin_mcp.tools.runflare import (
+from yasin_mcp.tools.registry import (\n    TOOL_GET_PROJECT,\n    TOOL_LIST_DEPS,\n    TOOL_LIST_PROJECTS,\n    RegistryToolset,\n)\nfrom yasin_mcp.tools.runflare import (
     TOOL_DEPLOY,
     TOOL_EVENTS,
     TOOL_LOGS,
