@@ -52,7 +52,7 @@ RUNFLARE_CAPABILITY_DEFINITIONS: tuple[RunflareCapabilityDefinition, ...] = (
         input_schema=_EMPTY_INPUT_SCHEMA,
     ),
     RunflareCapabilityDefinition(
-        name="runflare_release",
+        name="runflare_deploy",
         operation="deploy",
         description="Deploy the explicitly configured Runflare project target.",
         risk=RiskLevel.MUTATION,
