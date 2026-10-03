@@ -22,12 +22,36 @@ _EMPTY_SCHEMA: Mapping[str, Any] = {
 }
 
 RUNFLARE_TOOL_DEFINITIONS = (
-    {"name": TOOL_STATUS, "description": "Read Runflare project status.", "input_schema": _EMPTY_SCHEMA},
-    {"name": TOOL_EVENTS, "description": "Read bounded Runflare project events.", "input_schema": _EMPTY_SCHEMA},
-    {"name": TOOL_LOGS, "description": "Read bounded Runflare project logs.", "input_schema": _EMPTY_SCHEMA},
-    {"name": TOOL_DEPLOY, "description": "Deploy the configured Runflare project.", "input_schema": _EMPTY_SCHEMA},
-    {"name": TOOL_START, "description": "Start the configured Runflare project.", "input_schema": _EMPTY_SCHEMA},
-    {"name": TOOL_RESTART, "description": "Restart the configured Runflare project.", "input_schema": _EMPTY_SCHEMA},
+    {
+        "name": TOOL_STATUS,
+        "description": "Read Runflare project status.",
+        "input_schema": _EMPTY_SCHEMA,
+    },
+    {
+        "name": TOOL_EVENTS,
+        "description": "Read bounded Runflare project events.",
+        "input_schema": _EMPTY_SCHEMA,
+    },
+    {
+        "name": TOOL_LOGS,
+        "description": "Read bounded Runflare project logs.",
+        "input_schema": _EMPTY_SCHEMA,
+    },
+    {
+        "name": TOOL_DEPLOY,
+        "description": "Deploy the configured Runflare project.",
+        "input_schema": _EMPTY_SCHEMA,
+    },
+    {
+        "name": TOOL_START,
+        "description": "Start the configured Runflare project.",
+        "input_schema": _EMPTY_SCHEMA,
+    },
+    {
+        "name": TOOL_RESTART,
+        "description": "Restart the configured Runflare project.",
+        "input_schema": _EMPTY_SCHEMA,
+    },
 )
 
 
