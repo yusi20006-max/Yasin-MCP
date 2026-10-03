@@ -47,7 +47,7 @@ def _probe(binary: str, *args: str, timeout: int = 15) -> str:
 
 def probe_compatibility(binary: str | None = None) -> CompatibilityReport:
     """Inspect version/help only; no project or credentials are touched."""
-    executable = binary or os.getenv("RUNFLARE_BIN", "runflare")
+    executable = binary or os.getenv("RUNFLARE_BIN") or "runflare"
     version = _probe(executable, "--version")
     help_text = _probe(executable, "--help")
 
