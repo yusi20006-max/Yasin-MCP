@@ -32,7 +32,8 @@ RUNFLARE_NAMES = {
     "runflare_stop",
 }
 GOV_NAMES = {TOOL_GOV_PING_LOW_RISK, TOOL_GOV_APPLY_MARK}
-ALWAYS_NAMES = DOCS_NAMES | GH_NAMES | REG_NAMES | GOV_NAMES | RUNFLARE_NAMES
+ALWAYS_TOOL_NAMES = DOCS_NAMES | GH_NAMES | REG_NAMES | GOV_NAMES
+ALWAYS_NAMES = ALWAYS_TOOL_NAMES | RUNFLARE_NAMES
 OPS_NAMES = {
     "yasin_operations_list_services",
     "yasin_operations_service_status",
@@ -49,7 +50,7 @@ def test_runtime_registers_docs_and_operations_when_gateway_available():
     names = {tool.name for tool in tools}
 
     assert OPS_NAMES <= names
-    assert ALWAYS_NAMES <= names
+    assert ALWAYS_TOOL_NAMES <= names
     assert names <= {cap.name for cap in runtime.capability_catalog().capabilities}
 
 
@@ -62,6 +63,6 @@ def test_runtime_registers_docs_only_when_gateway_unavailable():
 
     tools = runtime.server._tool_manager.list_tools()  # type: ignore[attr-defined]
     names = {tool.name for tool in tools}
-    assert names == ALWAYS_NAMES
+    assert names == ALWAYS_TOOL_NAMES
     assert OPS_NAMES.isdisjoint(names)
-    assert ALWAYS_NAMES <= {cap.name for cap in runtime.capability_catalog().capabilities}
+    assert ALWAYS_TOOL_NAMES <= {cap.name for cap in runtime.capability_catalog().capabilities}
