@@ -56,8 +56,10 @@ def test_compatibility_probe_never_uses_shell(monkeypatch: pytest.MonkeyPatch) -
 
     def fake_run(args, **kwargs):
         observed.append(kwargs["shell"])
-        return FakeCompleted("--version") if args[1] == "--version" else FakeCompleted(
-            "deploy events logs start restart stop -y"
+        return (
+            FakeCompleted("--version")
+            if args[1] == "--version"
+            else FakeCompleted("deploy events logs start restart stop -y")
         )
 
     monkeypatch.setattr(
