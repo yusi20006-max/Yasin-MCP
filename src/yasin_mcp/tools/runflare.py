@@ -1,4 +1,4 @@
-"""Scoped MCP tools for the Runflare provider."""
+"""Scoped MCP tools for the Runflare provider with explicit operations only."""
 
 from __future__ import annotations
 
