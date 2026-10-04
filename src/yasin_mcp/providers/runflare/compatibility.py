@@ -10,7 +10,7 @@ import os
 import subprocess
 from dataclasses import dataclass
 
-EXPECTED_COMMANDS = ("deploy", "events", "logs", "start", "restart", "stop")
+EXPECTED_COMMANDS = ("status", "deploy", "events", "logs", "start", "restart", "stop")
 EXPECTED_FLAGS = {
     "deploy": ("-y",),
     "events": ("-y",),
@@ -48,7 +48,9 @@ def _probe(binary: str, *args: str, timeout: int = 15) -> str:
 def probe_compatibility(binary: str | None = None) -> CompatibilityReport:
     """Inspect version/help only; no project or credentials are touched."""
     executable = binary or os.getenv("RUNFLARE_BIN") or "runflare"
-    version = _probe(executable, "--version")
+    # Runflare CLI 1.x exposes the version subcommand rather than a
+    # conventional --version global flag.
+    version = _probe(executable, "version")
     help_text = _probe(executable, "--help")
 
     missing_commands = tuple(command for command in EXPECTED_COMMANDS if command not in help_text)
