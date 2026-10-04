@@ -21,7 +21,7 @@ def test_requires_project_dir(monkeypatch: pytest.MonkeyPatch) -> None:
         validate_project_dir("")
 
 
-def test_project_root_boundary(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_project_root_boundary(tmp_path, monkeypatch) -> None:
     allowed = tmp_path / "allowed"
     allowed.mkdir()
     project = allowed / "project"
@@ -71,6 +71,29 @@ def test_timeout_is_bounded(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(subprocess, "run", timeout)
     with pytest.raises(RuntimeError, match="timed out"):
         cli._run("events", "-y")
+
+
+def test_status_uses_status_command(monkeypatch, tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.setenv("RUNFLARE_PROJECT_DIR", str(project))
+    cli = RunflareCLI()
+    calls: list[list[str]] = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+
+        class Completed:
+            returncode = 0
+            stdout = "status output"
+            stderr = ""
+
+        return Completed()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = cli.status()
+    assert result.stdout == "status output"
+    assert calls == [["runflare", "status"]]
 
 
 def test_stop_is_confirmation_gated(monkeypatch, tmp_path) -> None:
