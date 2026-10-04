@@ -79,3 +79,25 @@ def test_stop_is_confirmation_gated(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("RUNFLARE_PROJECT_DIR", str(project))
     with pytest.raises(PermissionError):
         RunflareCLI().stop()
+
+
+def test_redacts_authorization_header_and_x_api_key() -> None:
+    output = redact(
+        "Authorization: Bearer super-secret x-api-key: hidden-key",
+        1000,
+    )
+    assert "super-secret" not in output
+    assert "hidden-key" not in output
+
+
+def test_rejects_null_project_dir(tmp_path) -> None:
+    with pytest.raises(ValueError):
+        validate_project_dir(str(tmp_path) + "\x00")
+
+
+def test_allowed_root_is_required(monkeypatch, tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.delenv("RUNFLARE_ALLOWED_PROJECT_ROOT", raising=False)
+    with pytest.raises(ValueError):
+        validate_project_dir(str(project))
