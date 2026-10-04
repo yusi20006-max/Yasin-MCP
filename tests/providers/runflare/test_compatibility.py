@@ -17,10 +17,10 @@ def test_compatibility_probe_is_read_only(monkeypatch: pytest.MonkeyPatch) -> No
 
     def fake_run(args, **kwargs):
         calls.append(args)
-        if args[1] == "--version":
-            return FakeCompleted("runflare 1.2.3")
+        if args[1] == "version":
+            return FakeCompleted("Runflare CLI version 1.3.1")
         if args[1] == "--help":
-            return FakeCompleted("deploy events logs start restart stop")
+            return FakeCompleted("status deploy events logs start restart stop")
         return FakeCompleted("-y --help")
 
     monkeypatch.setattr(
@@ -29,17 +29,17 @@ def test_compatibility_probe_is_read_only(monkeypatch: pytest.MonkeyPatch) -> No
     )
     report = probe_compatibility("runflare")
     assert report.compatible
-    assert report.version == "runflare 1.2.3"
+    assert report.version == "Runflare CLI version 1.3.1"
     assert all("deploy" not in call[1:] or "--help" in call for call in calls)
-    assert all("--version" in call or "--help" in call for call in calls)
+    assert all("version" in call or "--help" in call for call in calls)
 
 
 def test_compatibility_probe_reports_missing_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(args, **kwargs):
-        if args[1] == "--version":
-            return FakeCompleted("runflare 1.2.3")
+        if args[1] == "version":
+            return FakeCompleted("Runflare CLI version 1.3.1")
         if args[1] == "--help":
-            return FakeCompleted("events logs")
+            return FakeCompleted("status events logs")
         return FakeCompleted("-y")
 
     monkeypatch.setattr(
@@ -57,9 +57,9 @@ def test_compatibility_probe_never_uses_shell(monkeypatch: pytest.MonkeyPatch) -
     def fake_run(args, **kwargs):
         observed.append(kwargs["shell"])
         return (
-            FakeCompleted("--version")
-            if args[1] == "--version"
-            else FakeCompleted("deploy events logs start restart stop -y")
+            FakeCompleted("Runflare CLI version 1.3.1")
+            if args[1] == "version"
+            else FakeCompleted("status deploy events logs start restart stop -y")
         )
 
     monkeypatch.setattr(
