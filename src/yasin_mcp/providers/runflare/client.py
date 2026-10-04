@@ -58,7 +58,7 @@ class RunflareCLI:
 
     def status(self) -> CLIResult:
         """Read the provider's point-in-time status; do not alias it to events."""
-        return self._run("status", "-y")
+        return self._run("status")
 
     def deploy(self) -> CLIResult:
         return self._run("deploy", "-y")
