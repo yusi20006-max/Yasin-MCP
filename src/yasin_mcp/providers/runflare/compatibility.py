@@ -10,11 +10,11 @@ import os
 import subprocess
 from dataclasses import dataclass
 
-EXPECTED_COMMANDS = ("status", "deploy", "events", "logs", "start", "restart", "stop")
+EXPECTED_COMMANDS = ("status", "deploy", "event", "log", "start", "restart", "stop")
 EXPECTED_FLAGS = {
     "deploy": ("-y",),
-    "events": ("-y",),
-    "logs": ("-y",),
+    "event": ("-y",),
+    "log": ("-y",),
     "start": ("-y",),
     "restart": ("-y",),
 }

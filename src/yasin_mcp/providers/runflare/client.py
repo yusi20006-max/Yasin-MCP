@@ -64,10 +64,12 @@ class RunflareCLI:
         return self._run("deploy", "-y")
 
     def logs(self, follow: bool = False) -> CLIResult:
-        return self._run("logs", "-y", *(["-f"] if follow else []))
+        """Map MCP logs surface to CLI 1.3.1 `log` command."""
+        return self._run("log", "-y", *(["-f"] if follow else []))
 
     def events(self, follow: bool = False) -> CLIResult:
-        return self._run("events", "-y", *(["-f"] if follow else []))
+        """Map MCP events surface to CLI 1.3.1 `event` command."""
+        return self._run("event", "-y", *(["-f"] if follow else []))
 
     def restart(self) -> CLIResult:
         return self._run("restart", "-y")
