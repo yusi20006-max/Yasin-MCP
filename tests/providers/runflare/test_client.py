@@ -47,7 +47,7 @@ def test_missing_cli_is_reported(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("RUNFLARE_PROJECT_DIR", str(project))
     monkeypatch.setenv("RUNFLARE_BIN", "runflare")
     with pytest.raises(RuntimeError, match="not found"):
-        RunflareCLI()._run("events", "-y")
+        RunflareCLI()._run("event", "-y")
 
 
 def test_null_byte_is_rejected(monkeypatch, tmp_path) -> None:
@@ -56,7 +56,7 @@ def test_null_byte_is_rejected(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("RUNFLARE_PROJECT_DIR", str(project))
     cli = RunflareCLI()
     with pytest.raises(ValueError):
-        cli._run("events", "bad\x00arg")
+        cli._run("event", "bad\x00arg")
 
 
 def test_timeout_is_bounded(monkeypatch, tmp_path) -> None:
@@ -70,7 +70,7 @@ def test_timeout_is_bounded(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr(subprocess, "run", timeout)
     with pytest.raises(RuntimeError, match="timed out"):
-        cli._run("events", "-y")
+        cli._run("event", "-y")
 
 
 def test_status_uses_status_command(monkeypatch, tmp_path) -> None:
@@ -94,6 +94,52 @@ def test_status_uses_status_command(monkeypatch, tmp_path) -> None:
     result = cli.status()
     assert result.stdout == "status output"
     assert calls == [["runflare", "status"]]
+
+
+def test_events_maps_to_cli_event_command(monkeypatch, tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.setenv("RUNFLARE_PROJECT_DIR", str(project))
+    cli = RunflareCLI()
+    calls: list[list[str]] = []
+
+    def fake_run(args, **kwargs):
+        calls.append(list(args))
+
+        class Completed:
+            returncode = 0
+            stdout = "event output"
+            stderr = ""
+
+        return Completed()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = cli.events()
+    assert result.stdout == "event output"
+    assert calls == [["runflare", "event", "-y"]]
+
+
+def test_logs_maps_to_cli_log_command(monkeypatch, tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.setenv("RUNFLARE_PROJECT_DIR", str(project))
+    cli = RunflareCLI()
+    calls: list[list[str]] = []
+
+    def fake_run(args, **kwargs):
+        calls.append(list(args))
+
+        class Completed:
+            returncode = 0
+            stdout = "log output"
+            stderr = ""
+
+        return Completed()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = cli.logs()
+    assert result.stdout == "log output"
+    assert calls == [["runflare", "log", "-y"]]
 
 
 def test_stop_is_confirmation_gated(monkeypatch, tmp_path) -> None:
