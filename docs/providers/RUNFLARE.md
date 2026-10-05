@@ -26,9 +26,9 @@ The provider uses authentication already configured for the official CLI. Creden
 
 | Capability | Operation | Risk | Execution policy |
 | --- | --- | --- | --- |
-| `runflare_status` | status/events | READ_ONLY | autonomous |
-| `runflare_events` | events | READ_ONLY | autonomous |
-| `runflare_logs` | logs | READ_ONLY | autonomous |
+| `runflare_status` | status | READ_ONLY | autonomous |
+| `runflare_events` | event | READ_ONLY | autonomous |
+| `runflare_logs` | log | READ_ONLY | autonomous |
 | `runflare_deploy` | deploy | MUTATION | governance approval |
 | `runflare_start` | start | MUTATION | governance approval |
 | `runflare_restart` | restart | MUTATION | governance approval |
@@ -38,22 +38,28 @@ There is no generic shell or `run_command(command: string)` capability.
 
 ## CLI compatibility
 
-The provider targets the documented official CLI contract:
+The provider targets the official Runflare CLI 1.3.1 contract:
 
+- `runflare status`
 - `runflare deploy -y`
-- `runflare events -y`
-- `runflare events -y -f`
-- `runflare logs -y`
-- `runflare logs -y -f`
+- `runflare event -y`
+- `runflare event -y -f`
+- `runflare log -y`
+- `runflare log -y -f`
 - `runflare start -y`
 - `runflare restart -y`
+- `runflare stop` (confirmation-gated; not exposed as a normal MCP tool)
+
+MCP capability names remain `runflare_events` / `runflare_logs` for stable
+tool identity; the provider maps them to the singular CLI verbs `event` /
+`log`.
 
 Runflare documents `-y` as the cached-project/service selection path, which is required for non-interactive execution.
 
 Yasin-MCP includes a read-only compatibility probe in
-`yasin_mcp.providers.runflare.compatibility`. It checks `--version`,
-top-level `--help`, and command-level `--help` only. It never executes
-deploy/start/restart/stop.
+`yasin_mcp.providers.runflare.compatibility`. It checks the `version`
+subcommand, top-level `--help`, and command-level `--help` only. It never
+executes deploy/start/restart/stop.
 
 ### Local live validation
 
@@ -68,7 +74,7 @@ pytest -q tests/providers/runflare/test_live_compatibility.py
 
 The live checks require the existing official CLI authentication. They do not
 accept or print credentials and only execute compatibility probes plus
-non-destructive events/logs diagnostics.
+non-destructive event/log diagnostics.
 
 ## Configuration
 
@@ -78,16 +84,19 @@ non-destructive events/logs diagnostics.
 - `RUNFLARE_TIMEOUT_SECONDS` — bounded CLI execution timeout
 - `RUNFLARE_MAX_OUTPUT` — bounded/redacted output size
 
-## Hermes integration contract
+## Security invariants
 
-The existing `yusi20006-max/hermes-runflare` deployment uses a Dockerized
-Hermes gateway on Runflare. Its documented service contract is project
-`hermes`, service `hermes-gate`, port 8000, with persistent data at
-`/opt/data`. The repository keeps Telegram/Bale/provider credentials in
-Runflare environment variables rather than source files. No Hermes-side
-change is required by the Yasin-MCP provider contract.
+- `shell=False` argv execution only
+- official executable name enforced
+- no user-controlled executable injection
+- closed MCP tool inputs (no credential fields)
+- project path constrained under allowed root
+- stdout/stderr redacted and truncated
+- `stop` confirmation-gated and not a normal MCP tool
 
-For Hermes, Yasin-MCP is an operational control/diagnostic plane; it does not
+## Hermes relationship
+
+Hermes is a separate control/diagnostic plane; it does not
 replace Hermes application credentials, messaging configuration, or startup
 process.
 
