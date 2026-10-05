@@ -20,15 +20,15 @@ The MCP layer never becomes a generic shell bridge.
 
 ## Permission matrix
 
-| Operation | Risk | Autonomous | Confirmation |
+| Operation (MCP / CLI) | Risk | Autonomous | Confirmation |
 |---|---|---:|---:|
-| status | READ_ONLY | Yes | No |
-| events | READ_ONLY | Yes | No |
-| logs | READ_ONLY | Yes | No |
-| deploy | MUTATION | No | Governance policy |
-| start | MUTATION | No | Governance policy |
-| restart | MUTATION | No | Governance policy |
-| stop | MUTATION | No | Explicit confirmation |
+| status / `status` | READ_ONLY | Yes | No |
+| events / `event` | READ_ONLY | Yes | No |
+| logs / `log` | READ_ONLY | Yes | No |
+| deploy / `deploy` | MUTATION | No | Governance policy |
+| start / `start` | MUTATION | No | Governance policy |
+| restart / `restart` | MUTATION | No | Governance policy |
+| stop / `stop` | MUTATION | No | Explicit confirmation |
 
 The provider does not expose `runflare_stop` as an MCP tool. The capability remains registered so governance can represent the boundary.
 
@@ -55,7 +55,7 @@ Before any mutation:
 
 1. Confirm `RUNFLARE_PROJECT_DIR` points to the intended project.
 2. Confirm it is beneath `RUNFLARE_ALLOWED_PROJECT_ROOT`.
-3. Run status/events/log diagnostics.
+3. Run status / event / log diagnostics (CLI verbs are singular).
 4. Inspect sanitized output and return code.
 5. Do not use a generic shell command or substitute another executable.
 
@@ -92,7 +92,7 @@ Check that the official executable is named `runflare` and that `RUNFLARE_BIN` d
 Check that the path exists and is contained by `RUNFLARE_ALLOWED_PROJECT_ROOT`. Do not weaken the boundary to make a path pass.
 
 ### Timeout
-Treat a timeout as an incomplete operation. Inspect events/logs before retrying a mutation.
+Treat a timeout as an incomplete operation. Inspect event/log output before retrying a mutation.
 
 ### Output contains a credential-like value
 Do not copy or forward it. The provider redacts common authorization, API-key, token, password, and secret patterns. Report the sanitized result and investigate the upstream source separately.
